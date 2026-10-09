@@ -155,9 +155,6 @@
     if (!C.previa || !C.previa.ativo) return;
     bar.innerHTML = `<b>PRÉVIA</b><span>${esc(C.previa.texto)}</span>`;
     bar.hidden = false;
-    const atualizar = () => document.documentElement.style.setProperty("--bar-h", bar.offsetHeight + "px");
-    atualizar();
-    window.addEventListener("resize", atualizar, { passive: true });
   }
 
   function partesNome() {
@@ -165,42 +162,43 @@
     return [p1, resto.join(" ")];
   }
 
-  // Links do menu: só seções que existem no config
+  // Links do menu, na ordem da página: só seções que existem no config
   function navLinks() {
     return [
+      ["#sobre", "Sobre", C.sobre],
+      ["#unidades", "Unidades", true],
       ["#servicos", "Serviços", C.servicos],
       ["#barboterapia", "Barboterapia", C.destaque],
-      ["#unidades", "Unidades", true],
       ["#assinatura", "Assinatura", C.assinatura],
+      ["#comodidades", "Comodidades", C.comodidades],
       ["#escola", "Escola", C.escola],
+      ["#faq", "Dúvidas", C.faq],
     ]
       .filter((l) => l[2])
-      .map(([h, t]) => `<a href="${h}">${t}</a>`)
+      .map(([h, t]) => `<a href="${h}" data-nav="${h.slice(1)}">${t}</a>`)
       .join("");
+  }
+
+  // Cabeçalho fixo: marca, todas as seções e o botão de agendar sempre à mão
+  function renderCabecalho() {
+    const [n1, n2] = partesNome();
+    $("#cabecalho").innerHTML = `
+      <div class="wrap site-head__row">
+        <a class="wordmark" href="#topo" aria-label="${esc(C.marca.nomeCompleto)}, voltar ao início">${esc(n1)} <span>${esc(n2)}</span></a>
+        <a class="btn btn--primary site-head__cta" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar</a>
+      </div>
+      <nav class="site-nav" aria-label="Seções da página"><div class="wrap site-nav__list">${navLinks()}</div></nav>`;
   }
 
   function renderTopo() {
     const m = C.marca;
-    const [n1, n2] = partesNome();
     const notas = C.unidades
       .filter((u) => typeof u.notaGoogle === "number")
       .map((u) => `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star")} <strong>${nota(u.notaGoogle)}</strong> ${esc(u.nome)}</a>`)
       .join("");
-    // Preços dos primeiros serviços: mostrar o valor cedo ajuda a decidir
-    const itens = (C.servicos && C.servicos.categorias && C.servicos.categorias[0].itens) || [];
-    const precos = itens
-      .filter((i) => typeof i.preco === "number")
-      .slice(0, 3)
-      .map((i) => `<span>${esc(i.nome)} <strong>${preco(i.preco)}</strong></span>`)
-      .join("");
     const f = m.foto;
     $("#topo").innerHTML = `
       <div class="wrap">
-        <header class="masthead">
-          <a class="wordmark" href="#topo" aria-label="${esc(m.nomeCompleto)}">${esc(n1)} <span>${esc(n2)}</span></a>
-          <nav class="nav" aria-label="Seções">${navLinks()}</nav>
-          <a class="btn btn--ink" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar</a>
-        </header>
         <div class="hero__grid">
           <div class="hero__copy">
             <p class="hero__status" data-status-geral aria-live="polite"></p>
@@ -208,9 +206,8 @@
             ${m.lead ? `<p class="hero__lead">${esc(m.lead)}</p>` : ""}
             <div class="hero__ctas">
               <a class="btn btn--primary btn--lg" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar horário</a>
-              <a class="link" href="#servicos">Ver todos os preços ${icon("arrow")}</a>
+              <a class="link" href="#sobre">Conheça a Lumina ${icon("arrow")}</a>
             </div>
-            ${precos ? `<p class="hero__prices" aria-label="Alguns preços">${precos}</p>` : ""}
             ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src">no Google</span></div>` : ""}
           </div>
           <figure class="hero__photo">
@@ -722,28 +719,60 @@
     });
   }
 
-  /* ---------- Botão flutuante "Agendar" (celular) ---------- */
+  /* ---------- Navegação: seção atual + "A seguir" ---------- */
 
-  function iniciarFab() {
-    const fab = $("#fab-agendar");
-    const alvos = [$("#topo"), $("#unidades")].filter(Boolean);
-    if (!("IntersectionObserver" in window) || !alvos.length) return;
-    fab.hidden = false;
-    const visiveis = new Set();
+  // Fim de cada seção: um convite para a próxima, com o título dela
+  function renderProximas() {
+    const secoes = $$("#conteudo > section[id]").filter((sec) => sec.id !== "topo" && sec.innerHTML.trim());
+    secoes.forEach((sec, i) => {
+      const prox = secoes[i + 1];
+      const titulo = prox && $("h2", prox);
+      if (!titulo) return;
+      const link = document.createElement("div");
+      link.className = "wrap";
+      link.innerHTML = `<a class="next" href="#${prox.id}"><span class="next__label">A seguir</span><span class="next__title">${esc(titulo.textContent.trim())}</span>${icon("arrow")}</a>`;
+      sec.appendChild(link);
+    });
+  }
+
+  // Cabeçalho: altura para a rolagem, sombra ao rolar e link da seção atual em destaque
+  function iniciarNavegacao() {
+    const head = $("#cabecalho");
+    const raiz = document.documentElement.style;
+    const medir = () => raiz.setProperty("--head-h", head.offsetHeight + "px");
+    medir();
+    window.addEventListener("resize", medir, { passive: true });
+
+    const marcar = () => head.classList.toggle("is-scrolled", scrollY > 8);
+    marcar();
+    window.addEventListener("scroll", marcar, { passive: true });
+
+    if (!("IntersectionObserver" in window)) return;
+    const lista = $(".site-nav__list", head);
+    const links = $$("[data-nav]", head);
+    const ativar = (id) => {
+      links.forEach((a) => {
+        const sim = a.dataset.nav === id;
+        a.classList.toggle("is-active", sim);
+        if (sim) {
+          a.setAttribute("aria-current", "true");
+          // No celular a lista rola de lado: traz o item atual para a vista
+          if (lista.scrollWidth > lista.clientWidth) lista.scrollTo({ left: a.offsetLeft - 16, behavior: REDUZIR ? "auto" : "smooth" });
+        } else a.removeAttribute("aria-current");
+      });
+    };
     const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) e.isIntersecting ? visiveis.add(e.target) : visiveis.delete(e.target);
-        fab.classList.toggle("is-hidden", visiveis.size > 0);
-      },
-      { threshold: 0.02 }
+      (entries) => entries.forEach((e) => e.isIntersecting && ativar(e.target.id)),
+      { rootMargin: "-40% 0px -55% 0px" }
     );
-    alvos.forEach((a) => io.observe(a));
+    $$("#conteudo > section[id]").forEach((sec) => io.observe(sec));
   }
 
   /* ---------- Início ---------- */
 
   aplicarTema();
   renderPrevia();
+  renderCabecalho();
   renderTopo();
   renderSobre();
   renderUnidades();
@@ -758,5 +787,6 @@
   renderRodape();
   iniciarDialogo();
   iniciarPerto();
-  iniciarFab();
+  renderProximas();
+  iniciarNavegacao();
 })();
