@@ -21,9 +21,11 @@ assets/         fotos
 2. Edite só o `config.js`: marca, cores, unidades, horários, serviços, links.
 3. Qualquer valor `null` aparece na página como **[CONFIRMAR]**.
    Foto `null` aparece como **[FOTO DO AMBIENTE]**.
-4. Em títulos e frases, `*palavra*` vira a caixa vermelha de destaque.
+4. Em títulos e frases, `*palavra*` vira a caixa vermelha de destaque. Use pouco
+   (hoje só no topo e na assinatura): repetida em todo título ela perde a força.
 5. Para tirar uma seção inteira (ex.: `escola`, `assinatura`, `faq`), apague o bloco
-   dela no `config.js`. A numeração das seções se ajusta sozinha.
+   dela no `config.js`. Para mostrar o passo a passo de agendamento, acrescente um
+   bloco `passos` (`titulo` e `itens` com `titulo`/`texto`).
 6. O mapa das unidades é desenhado a partir de `lat`/`lng`: não precisa de chave
    de API nem biblioteca.
 7. Para um site oficial (não prévia), troque `previa.ativo` para `false`

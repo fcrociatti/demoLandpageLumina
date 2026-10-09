@@ -20,7 +20,7 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  // *palavra* = caixa vermelha · _palavra_ = serifa itálica
+  // *palavra* = caixa vermelha · _palavra_ = itálico
   const fmt = (s) =>
     esc(s)
       .replace(/\*(.+?)\*/g, "<mark>$1</mark>")
@@ -46,13 +46,11 @@
     if (!src) {
       return `<div class="photo photo--empty ${extraClass}" ${attrs} role="img" aria-label="Espaço para foto do ambiente">${icon("camera")}<span>[FOTO DO AMBIENTE]</span></div>`;
     }
+    // A foto do topo carrega logo; as demais só perto da tela
+    const carga = extraClass.includes("hero__img") ? 'fetchpriority="high"' : 'loading="lazy"';
     const pos = f.posicao ? ` style="object-position:${esc(f.posicao)}"` : "";
-    return `<div class="photo ${extraClass}" ${attrs}><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy" decoding="async"${pos}></div>`;
+    return `<div class="photo ${extraClass}" ${attrs}><img src="${esc(src)}" alt="${esc(alt)}" ${carga} decoding="async"${pos}></div>`;
   }
-
-  // Numeração automática das seções: "01 — Unidades"
-  let secao = 0;
-  const label = (rotulo) => `<p class="label"><b>${String(++secao).padStart(2, "0")}</b> — ${esc(rotulo)}</p>`;
 
   const ICONES_COMODIDADE = { "Wi-Fi": "wifi", Estacionamento: "car", "Atende crianças": "kid", Acessibilidade: "access" };
 
@@ -188,60 +186,43 @@
       .filter((u) => typeof u.notaGoogle === "number")
       .map((u) => `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star")} <strong>${nota(u.notaGoogle)}</strong> ${esc(u.nome)}</a>`)
       .join("");
-    const [chamada, desde] = (m.chamada || "").split(/\s·\s(?=desde)/i);
-
-    const stats = (C.numeros || [])
-      .map(
-        (n, i) => `<div class="stat" data-reveal style="--d:${i * 0.08}s">
-          <p class="stat__value">${esc(n.valor)}<small>${esc(n.sufixo || "")}</small></p>
-          <p class="stat__label">${esc(n.rotulo)}</p>
-        </div>`
-      )
-      .join("");
-
     const f = m.foto;
     $("#topo").innerHTML = `
       <div class="wrap">
         <header class="masthead">
-          <a class="wordmark" href="#topo" aria-label="${esc(m.nomeCompleto)}">${esc(n1)}<span>${esc(n2)}</span></a>
+          <a class="wordmark" href="#topo" aria-label="${esc(m.nomeCompleto)}">${esc(n1)} <span>${esc(n2)}</span></a>
           <nav class="nav" aria-label="Seções">${navLinks()}</nav>
           <a class="btn btn--ink" href="#unidades">${icon("cal")} Agendar</a>
         </header>
-        <div class="dateline"><span>${esc(chamada)}</span>${desde ? `<em class="it">${esc(desde.replace(/^desde/i, "Desde"))}</em>` : ""}</div>
-
         <div class="hero__grid">
-          <div class="hero__copy" data-reveal>
+          <div class="hero__copy">
             <h1 class="hero__title" id="hero-titulo">${fmt(m.frase)}.</h1>
             ${m.lead ? `<p class="hero__lead">${esc(m.lead)}</p>` : ""}
             <div class="hero__ctas">
               <a class="btn btn--primary btn--lg" href="#unidades">${icon("cal")} Agendar agora</a>
               <a class="link" href="#servicos">Ver o cardápio ${icon("arrow")}</a>
             </div>
-            ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src" style="align-self:center">no Google</span></div>` : ""}
+            ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src">no Google</span></div>` : ""}
           </div>
-          <figure class="hero__photo" data-reveal style="--d:.1s;margin-block:0">
-            ${foto(f, f && f.legenda ? f.legenda : `Ambiente da ${m.nomeCompleto}`, "", "data-luz")}
+          <figure class="hero__photo">
+            ${foto(f, f && f.legenda ? f.legenda : `Ambiente da ${m.nomeCompleto}`, "hero__img")}
             ${f && f.legenda ? `<figcaption class="caption">${esc(f.legenda)}</figcaption>` : ""}
           </figure>
         </div>
-        ${stats ? `<div class="stats">${stats}</div>` : ""}
       </div>`;
   }
 
   function renderSobre() {
     const s = C.sobre;
     if (!s) return $("#sobre").remove();
-    const pilares = s.pilares || semMarcas(C.marca.frase).split(/,\s*|\s+e\s+/).filter(Boolean);
     const fotos = s.fotos || [];
     $("#sobre").innerHTML = `
       <div class="wrap about">
-        <div data-reveal>
-          ${label("Sobre")}
+        <div>
           <h2 class="title" id="sobre-titulo">${fmt(s.titulo)}</h2>
-          <div class="about__text" style="margin-top:24px">${s.texto.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
-          <p class="pillars" aria-label="Valores">${pilares.map((p) => `<span>${esc(p[0].toUpperCase() + p.slice(1))}.</span>`).join("")}</p>
+          <div class="about__text">${s.texto.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
         </div>
-        ${fotos.length ? `<div class="about__photos" data-reveal style="--d:.12s">
+        ${fotos.length ? `<div class="about__photos">
           ${fotos.map((f) => `<figure>${foto(f, f.legenda || "")}${f.legenda ? `<figcaption class="caption">${esc(f.legenda)}</figcaption>` : ""}</figure>`).join("")}
         </div>` : ""}
       </div>`;
@@ -254,8 +235,7 @@
     $("#unidades").innerHTML = `
       <div class="wrap">
         <div class="units-head">
-          <div data-reveal>
-            ${label("Unidades")}
+          <div>
             <h2 class="title" id="unidades-titulo">${fmt(t.titulo)}</h2>
             <p class="lead">${esc(t.lead || "")}</p>
             <div class="nearest">
@@ -263,7 +243,7 @@
               <p class="nearest__msg" id="perto-msg" aria-live="polite"></p>
             </div>
           </div>
-          <div class="map" id="mapa" data-reveal style="--d:.1s"></div>
+          <div class="map" id="mapa"></div>
         </div>
         <div class="units" id="lista-unidades">
           ${C.unidades.map(cartaoUnidade).join("")}
@@ -276,13 +256,13 @@
     document.addEventListener("visibilitychange", () => !document.hidden && atualizarStatus());
   }
 
-  function cartaoUnidade(u, i) {
+  function cartaoUnidade(u) {
     const tel = u.telefone
       ? `<a href="${linkTel(u.telefone)}">${icon("phone")} ${esc(u.telefone)}</a>`
       : `<span>${icon("phone")} ${confirmar("telefone")}</span>`;
     const google =
       typeof u.notaGoogle === "number"
-        ? `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star", "icon-star")} ${nota(u.notaGoogle)} · ver no Google</a>`
+        ? `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star", "icon-star")} ${nota(u.notaGoogle)} no Google</a>`
         : "";
     const chips = (u.comodidades || [])
       .map((c) => `<span class="chip">${icon(ICONES_COMODIDADE[c] || "check")} ${esc(c)}</span>`)
@@ -292,14 +272,11 @@
       .join("");
 
     return `
-      <article class="unit" id="unidade-${esc(u.id)}" data-reveal style="--d:${i * 0.1}s" aria-labelledby="nome-${esc(u.id)}">
+      <article class="unit" id="unidade-${esc(u.id)}" aria-labelledby="nome-${esc(u.id)}">
         <span class="unit__flag">Mais perto de você</span>
         ${u.foto !== undefined ? foto(u.foto, `Unidade ${u.nome}`, "unit__photo") : ""}
         <div class="unit__body">
-          <div class="unit__top">
-            <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
-            <span class="unit__num" aria-hidden="true">nº ${String(i + 1).padStart(2, "0")}</span>
-          </div>
+          <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
           <div class="unit__status"><span class="status" data-status>…</span><span class="unit__when" data-when></span></div>
           <p class="unit__addr">${val(u.endereco, "endereço")}<small>${[u.bairro, u.cidade].filter(Boolean).map(esc).join(" · ")}</small></p>
           ${chips ? `<div class="chips">${chips}</div>` : ""}
@@ -350,10 +327,6 @@
     for (let y = 0; y <= H; y += 40) grade += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
 
     const xy = pts.map(proj);
-    let ligacoes = "";
-    for (let i = 0; i < xy.length; i++)
-      for (let j = i + 1; j < xy.length; j++)
-        ligacoes += `<line class="map__link" x1="${xy[i][0]}" y1="${xy[i][1]}" x2="${xy[j][0]}" y2="${xy[j][1]}"/>`;
 
     const pontos = pts
       .map(({ u }, i) => {
@@ -363,10 +336,9 @@
         const anchor = dir ? "end" : "start";
         return `<g class="map__pt" tabindex="0" role="link" aria-label="Ver unidade ${esc(u.nome)}" data-alvo="unidade-${esc(u.id)}">
           <circle cx="${x}" cy="${y}" r="40" fill="transparent"/>
-          <circle class="glow" cx="${x}" cy="${y}" r="34"/>
-          <circle class="dot" cx="${x}" cy="${y}" r="12"/>
+          <circle class="dot" cx="${x}" cy="${y}" r="10"/>
           <text x="${tx}" y="${y - 3}" text-anchor="${anchor}">${esc(u.nome)}</text>
-          ${typeof u.notaGoogle === "number" ? `<text class="sub" x="${tx}" y="${y + 20}" text-anchor="${anchor}">★ ${nota(u.notaGoogle)} Google</text>` : ""}
+          ${typeof u.notaGoogle === "number" ? `<text class="sub" x="${tx}" y="${y + 20}" text-anchor="${anchor}">${nota(u.notaGoogle)} no Google</text>` : ""}
         </g>`;
       })
       .join("");
@@ -374,17 +346,16 @@
     let me = "";
     if (eu) {
       const [x, y] = proj(eu);
-      me = `<g class="map__me"><circle class="glow" cx="${x}" cy="${y}" r="22"/><circle class="dot" cx="${x}" cy="${y}" r="9"/>
+      me = `<g class="map__me"><circle class="dot" cx="${x}" cy="${y}" r="8"/>
         <text x="${x}" y="${y + 34}" text-anchor="middle">Você</text></g>`;
     }
 
     box.innerHTML = `
       <svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa esquemático das unidades">
         <g class="map__grid">${grade}</g>
-        <text class="map__label" x="${W / 2}" y="${H - 26}" text-anchor="middle">BUTANTÃ</text>
-        ${ligacoes}${pontos}${me}
+        ${pontos}${me}
       </svg>
-      <p class="map__note">mapa esquemático · posições reais</p>`;
+      <p class="map__note">Mapa esquemático do Butantã, posições reais</p>`;
 
     $$(".map__pt", box).forEach((g) => {
       const ir = () => document.getElementById(g.dataset.alvo).scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
@@ -398,22 +369,21 @@
     if (!p) return $("#como-agendar").remove();
     $("#como-agendar").innerHTML = `
       <div class="wrap">
-        <div data-reveal>
-          ${label("Como agendar")}
+        <div>
           <h2 class="title" id="passos-titulo">${fmt(p.titulo)}</h2>
         </div>
         <ol class="steps">
-          ${p.itens.map((s, i) => `<li class="step" data-reveal style="--d:${i * 0.1}s"><h3>${esc(s.titulo)}</h3><p>${esc(s.texto)}</p></li>`).join("")}
+          ${p.itens.map((s) => `<li class="step"><h3>${esc(s.titulo)}</h3><p>${esc(s.texto)}</p></li>`).join("")}
         </ol>
       </div>`;
   }
 
   /* --- Cardápio com abas --- */
 
-  function itemCardapio(i, n) {
+  function itemCardapio(i) {
     const valor = typeof i.preco === "number" ? preco(i.preco) : confirmar("valor");
     const desc = [i.desc && esc(i.desc), i.min && `${i.min} min`].filter(Boolean).join(" · ");
-    return `<li class="menu-item" style="animation-delay:${n * 0.03}s">
+    return `<li class="menu-item">
       <span class="menu-item__name">${esc(i.nome)}${i.unidade ? `<span class="menu-item__tag">${esc(i.unidade)}</span>` : ""}</span>
       <span class="menu-item__dots" aria-hidden="true"></span>
       <span class="menu-item__price">${i.aPartirDe ? "<small>a partir de</small>" : ""}${valor}</span>
@@ -426,12 +396,10 @@
     if (!s) return $("#servicos").remove();
     const cats = s.categorias || [{ nome: "Serviços", itens: s.itens || [] }];
     const sec = $("#servicos");
-    sec.setAttribute("data-luz", "");
     sec.innerHTML = `
       <div class="wrap">
-        <div class="menu-head" data-reveal>
+        <div class="menu-head">
           <div>
-            ${label("Serviços")}
             <h2 class="title" id="servicos-titulo">${fmt(s.titulo)}</h2>
           </div>
           <p class="menu-note">${esc(s.aviso)}</p>
@@ -473,40 +441,18 @@
   function renderDestaque() {
     const d = C.destaque;
     if (!d) return $("#barboterapia").remove();
-    const R = 128, CIRC = 2 * Math.PI * R;
-    const frac = Math.min((d.duracao || 0) / 60, 1);
-    let ticks = "";
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const r1 = 148, r2 = i % 3 === 0 ? 137 : 142;
-      ticks += `<line x1="${150 + r1 * Math.cos(a)}" y1="${150 + r1 * Math.sin(a)}" x2="${150 + r2 * Math.cos(a)}" y2="${150 + r2 * Math.sin(a)}"/>`;
-    }
-
     $("#barboterapia").innerHTML = `
       <div class="wrap feature">
-        ${d.duracao ? `
-        <div class="feature__visual" data-reveal>
-          <div class="dial" id="dial" data-frac="${frac}">
-            <div class="steam" aria-hidden="true"><span></span><span></span><span></span></div>
-            <svg viewBox="0 0 300 300" aria-hidden="true">
-              <g class="dial__ticks">${ticks}</g>
-              <circle class="dial__track" cx="150" cy="150" r="${R}" fill="none" stroke-width="10"/>
-              <circle class="dial__fill" cx="150" cy="150" r="${R}" fill="none" stroke-width="10"
-                stroke-dasharray="${CIRC}" stroke-dashoffset="${REDUZIR ? CIRC * (1 - frac) : CIRC}"/>
-            </svg>
-            <div class="dial__center"><p class="dial__pre">até</p><p class="dial__value">${d.duracao}</p><p class="dial__unit">minutos</p></div>
-          </div>
-        </div>` : ""}
-        <div data-reveal style="--d:.1s">
-          ${label("O diferencial")}
+        <div class="feature__copy">
           <h2 class="title" id="barboterapia-titulo">${fmt(d.titulo)}</h2>
           <p class="feature__sub">${esc(d.subtitulo)}</p>
           <p class="lead">${esc(d.texto)}</p>
+          ${d.duracao ? `<p class="feature__time"><strong>Até ${d.duracao} min</strong> na cadeira, conforme a necessidade da barba.</p>` : ""}
           <ul class="checklist">${d.itens.map((i) => `<li>${icon("check")} ${esc(i)}</li>`).join("")}</ul>
-          ${d.incluidaEm ? `<div class="included"><p>Incluída em</p><div class="chips">${d.incluidaEm.map((s) => `<span class="chip">${icon("scissors")} ${esc(s)}</span>`).join("")}</div></div>` : ""}
+          ${d.incluidaEm ? `<div class="included"><p>Incluída em</p><div class="chips">${d.incluidaEm.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div></div>` : ""}
           <button type="button" class="btn btn--primary btn--lg" data-escolher-unidade>${icon("cal")} Agendar barba</button>
         </div>
-        ${"foto" in d ? `<div class="feature__photo" data-reveal>${foto(d.foto, "Barboterapia com toalha quente")}</div>` : ""}
+        ${"foto" in d ? `<div class="feature__photo">${foto(d.foto, "Barboterapia com toalha quente")}</div>` : ""}
       </div>`;
   }
 
@@ -516,14 +462,13 @@
     const href = a.whatsapp ? linkWa(a.whatsapp, a.mensagem) : null;
     $("#assinatura").innerHTML = `
       <div class="wrap plan">
-        <div data-reveal>
-          ${label("Plano")}
+        <div>
           <h2 class="title" id="assinatura-titulo">${fmt(a.titulo)}</h2>
           <p class="plan__text">${esc(a.texto)}</p>
           ${a.servicosPlano ? `<div class="plan__services"><p>${esc(a.servicosNota || "Serviços do plano")}</p>
             <div class="chips">${a.servicosPlano.map((s) => `<span class="chip">${icon("check")} ${esc(s)}</span>`).join("")}</div></div>` : ""}
         </div>
-        <div class="plan__card" data-reveal style="--d:.12s">
+        <div class="plan__card">
           <p class="plan__card-label">Valor mensal</p>
           <p class="plan__value">${val(a.valor, "valor")}</p>
           <p class="plan__name">Plano: ${val(a.plano, "plano")}</p>
@@ -539,14 +484,13 @@
     const pg = c.pagamento;
     $("#comodidades").innerHTML = `
       <div class="wrap">
-        <div data-reveal>
-          ${label("Comodidades")}
+        <div>
           <h2 class="title" id="comodidades-titulo">${fmt(c.titulo)}</h2>
         </div>
         <ul class="amenities">
           ${c.itens
             .map(
-              (i, n) => `<li class="amenity" data-reveal style="--d:${(n % 3) * 0.08}s">
+              (i) => `<li class="amenity">
                 ${icon(i.icone)}
                 <p class="amenity__name">${esc(i.nome)}</p>
                 <p class="amenity__text">${val(i.texto, i.confirmar)}</p>
@@ -554,9 +498,9 @@
             )
             .join("")}
         </ul>
-        ${pg ? `<div class="payments" data-reveal>
+        ${pg ? `<div class="payments">
           <h3>${esc(pg.titulo)}</h3>
-          <div class="chips" style="margin-top:0">${pg.itens.map((p) => `<span class="chip">${esc(p)}</span>`).join("")}</div>
+          <div class="chips">${pg.itens.map((p) => `<span class="chip">${esc(p)}</span>`).join("")}</div>
           ${pg.nota ? `<p>${esc(pg.nota)}</p>` : ""}
         </div>` : ""}
       </div>`;
@@ -567,12 +511,12 @@
     if (!e) return $("#escola").remove();
     $("#escola").innerHTML = `
       <div class="wrap">
-        <div class="school" data-luz data-reveal>
+        <div class="school">
           <div>
-            ${label(e.subtitulo)}
             <h2 class="title" id="escola-titulo">${fmt(e.titulo)}</h2>
+            ${e.subtitulo ? `<p class="school__sub">${esc(e.subtitulo)}</p>` : ""}
             <p class="school__text">${esc(e.texto)}</p>
-            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` <span style="white-space:nowrap">${esc(e.whatsappTexto)}</span>` : ""}</p>` : ""}
+            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` <span class="nowrap">${esc(e.whatsappTexto)}</span>` : ""}</p>` : ""}
           </div>
           <div class="school__actions">
             ${botao({ href: e.whatsapp && linkWa(e.whatsapp, e.mensagem), classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
@@ -587,11 +531,10 @@
     if (!f || !f.itens.length) return $("#faq").remove();
     $("#faq").innerHTML = `
       <div class="wrap faq-grid">
-        <div data-reveal>
-          ${label("Dúvidas")}
+        <div>
           <h2 class="title" id="faq-titulo">${fmt(f.titulo)}</h2>
         </div>
-        <div class="faq-list" data-reveal style="--d:.1s">
+        <div class="faq-list">
           ${f.itens.map((q) => `<details class="faq-item"><summary>${esc(q.p)} ${icon("plus")}</summary><p>${esc(q.r)}</p></details>`).join("")}
         </div>
       </div>`;
@@ -602,8 +545,7 @@
     const t = C.instagram;
     if (!ig || !t) return $("#instagram").remove();
     $("#instagram").innerHTML = `
-      <div class="wrap ig" data-reveal>
-        ${label("Instagram")}
+      <div class="wrap ig">
         <h2 class="ig__handle" id="ig-titulo">${esc(ig.usuario)}</h2>
         <p class="ig__text">${esc(t.texto)}</p>
         <a class="btn btn--ink btn--lg" href="${esc(ig.url)}" ${ext}>${icon("ig")} Seguir no Instagram</a>
@@ -615,7 +557,6 @@
     const ig = C.redes && C.redes.instagram;
     const tc = C.trabalheConosco;
     const rod = $("#rodape");
-    rod.setAttribute("data-luz", "");
     rod.innerHTML = `
       <div class="wrap">
         <p class="footer__phrase">${esc(semMarcas(C.marca.frase))}.</p>
@@ -626,7 +567,7 @@
                 <h3>${esc(u.nome)}</h3>
                 <p>${val(u.endereco, "endereço")}</p>
                 <p>${u.telefone ? `<a href="${linkTel(u.telefone)}">${esc(u.telefone)}</a>` : confirmar("telefone")}</p>
-                ${typeof u.notaGoogle === "number" ? `<p><a href="${esc(linkGoogle(u))}" ${ext}>★ ${nota(u.notaGoogle)} · ver no Google</a></p>` : ""}
+                ${typeof u.notaGoogle === "number" ? `<p><a href="${esc(linkGoogle(u))}" ${ext}>${nota(u.notaGoogle)} no Google</a></p>` : ""}
               </div>`
             )
             .join("")}
@@ -634,10 +575,12 @@
         <nav class="footer__links" aria-label="Links">
           ${ig ? `<a href="${esc(ig.url)}" ${ext}>${icon("ig")} ${esc(ig.usuario)}</a>` : ""}
           ${tc ? `<a href="${esc(tc.url)}" ${ext}>Trabalhe conosco ${tc.confirmar ? confirmar(tc.confirmar) : ""}</a>` : ""}
-          <a href="#topo">Voltar ao topo ↑</a>
+          <a href="#topo">Voltar ao topo</a>
         </nav>
-        <p class="footer__mark" aria-hidden="true"><span>${esc(n1)}</span> <span>${esc(n2)}</span></p>
-        ${C.previa && C.previa.ativo ? `<p class="footer__credit">${esc(C.previa.texto)}</p>` : ""}
+        <div class="footer__base">
+          <p class="footer__mark" aria-hidden="true">${esc(n1)} <span>${esc(n2)}</span></p>
+          ${C.previa && C.previa.ativo ? `<p class="footer__credit">${esc(C.previa.texto)}</p>` : ""}
+        </div>
       </div>`;
   }
 
@@ -725,72 +668,6 @@
     });
   }
 
-  /* ---------- Efeito Lumina: foco de luz nos elementos [data-luz] ---------- */
-
-  function iniciarLuz() {
-    const alvos = $$("[data-luz]");
-    if (!alvos.length || REDUZIR) return; // reduzir movimento: luz parada no centro
-    const temMouse = matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-    if (!temMouse) {
-      // Celular: o foco passeia devagar sozinho (animação CSS)
-      alvos.forEach((el) => el.classList.add("luz-auto"));
-      return;
-    }
-
-    let px = 0, py = 0, agendado = false;
-    const aplicar = () => {
-      agendado = false;
-      for (const el of alvos) {
-        const r = el.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > innerHeight) continue;
-        el.style.setProperty("--lx", (((px - r.left) / r.width) * 100).toFixed(1) + "%");
-        el.style.setProperty("--ly", (((py - r.top) / r.height) * 100).toFixed(1) + "%");
-      }
-    };
-    window.addEventListener(
-      "pointermove",
-      (e) => {
-        px = e.clientX;
-        py = e.clientY;
-        if (!agendado) {
-          agendado = true;
-          requestAnimationFrame(aplicar);
-        }
-      },
-      { passive: true }
-    );
-  }
-
-  /* ---------- Entrada ao rolar + relógio ---------- */
-
-  function iniciarReveal() {
-    const dial = $("#dial");
-    const encherDial = () => {
-      if (!dial) return;
-      const c = $(".dial__fill", dial);
-      c.style.strokeDashoffset = Number(c.getAttribute("stroke-dasharray")) * (1 - Number(dial.dataset.frac));
-    };
-
-    if (REDUZIR || !("IntersectionObserver" in window)) {
-      encherDial();
-      return;
-    }
-    document.documentElement.classList.add("js-reveal");
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          e.target.classList.add("is-in");
-          if (dial && e.target.contains(dial)) setTimeout(encherDial, 250);
-          io.unobserve(e.target);
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
-    );
-    $$("[data-reveal]").forEach((el) => io.observe(el));
-  }
-
   /* ---------- Botão flutuante "Agendar" (celular) ---------- */
 
   function iniciarFab() {
@@ -827,7 +704,5 @@
   renderRodape();
   iniciarDialogo();
   iniciarPerto();
-  iniciarLuz();
-  iniciarReveal();
   iniciarFab();
 })();
