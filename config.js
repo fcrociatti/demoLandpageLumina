@@ -49,7 +49,7 @@ window.SITE_CONFIG = {
 
   // "claro" ou "escuro". Para comparar sem publicar: ?tema=escuro ou ?tema=claro no endereço.
   // Para voltar ao visual claro de sempre, basta "claro".
-  tema: "claro",
+  tema: "escuro",
 
   cores: {
     destaque: "#E10600",
