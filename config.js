@@ -7,7 +7,7 @@
  * Convenções:
  * - Qualquer valor null aparece na página como [CONFIRMAR] em destaque.
  * - Foto null aparece como o espaço [FOTO DO AMBIENTE].
- * - Em textos, *palavra* vira a caixa vermelha de destaque.
+ * - Em títulos, *palavra* vira a caixa vermelha e _palavra_ vira serifa itálica.
  * - WhatsApp: só dígitos, com 55 + DDD (ex.: "5511999999999").
  * - Horário: dias 0=domingo ... 6=sábado; cada dia é uma lista de
  *   intervalos ["HH:MM", "HH:MM"]. Lista vazia = fechado.
@@ -16,6 +16,10 @@
  * Fontes dos dados da Lumina: briefing, perfil do Instagram e as
  * páginas das 3 unidades no AppBarber (out/2026).
  */
+
+// Fotos públicas da galeria da Lumina no AppBarber (só ambiente/detalhe, sem rosto de cliente).
+// Para usar fotos próprias, coloque o arquivo em assets/ e troque por "assets/nome.jpg".
+const FOTOS = "https://s3-sa-east-1.amazonaws.com/img-appbarber-appbeleza/";
 
 // Horário igual nas três unidades da Lumina.
 const HORARIO_LUMINA = {
@@ -50,8 +54,9 @@ window.SITE_CONFIG = {
     chamada: "Barbearia · Butantã · desde 2016",
     frase: "Conforto, *autoestima* e elegância",
     selo: "10 anos · 3 unidades no Butantã",
-    seloGiratorio: "BARBEARIA · DESDE 2016 · BUTANTÃ · ", // ~35 letras
-    fotos: [null, null, null], // colagem do topo (3 fotos)
+    lead: "Três barbearias no Butantã para cortar, fazer a barba com toalha quente e sair melhor do que entrou.",
+    // Foto grande do topo. posicao = enquadramento (CSS object-position).
+    foto: { src: FOTOS + "barbearialumina-jaud/68f020f29a205.png", legenda: "Unidade Jd. Esther", posicao: "center 60%" },
   },
 
   // Faixa de números do topo. Só dados reais.
@@ -62,14 +67,15 @@ window.SITE_CONFIG = {
     { valor: "1", sufixo: "escola", rotulo: "Lucchesi Academy" },
   ],
 
-  // Palavras que correm na faixa vermelha
-  faixa: ["Corte", "Barba", "Barboterapia", "Coloração", "Sobrancelha", "Corte infantil", "Escola de barbeiros"],
-
   sobre: {
-    titulo: "Corte de qualidade e *barboterapia*",
+    titulo: "Corte de qualidade e _barboterapia_",
     texto: [
       "Desde 2016 no Butantã, a Lumina Class une corte de qualidade e barboterapia: barba com toalha quente e produtos que cuidam da pele.",
       "Do corte à máquina ao customizado, da coloração à sobrancelha. E sempre com uma cerveja gelada ou um café expresso esperando por você.",
+    ],
+    fotos: [
+      { src: FOTOS + "barbearialumina-zhfp/68f0230fc510b.png", legenda: "Acabamento na navalha", posicao: "center" },
+      { src: FOTOS + "luminaclassbarb-41rp/68fff01807aa6.png", legenda: "As cadeiras da Bonfiglioli", posicao: "15% center" },
     ],
   },
 
@@ -93,7 +99,7 @@ window.SITE_CONFIG = {
       agendar: "https://sites.appbarber.com.br/luminaclassbarb-41rp",
       horario: HORARIO_LUMINA,
       comodidades: ["Wi-Fi", "Estacionamento", "Atende crianças"],
-      foto: null,
+      foto: { src: FOTOS + "luminaclassbarb-41rp/68ffefe759875.png", posicao: "center 70%" },
     },
     {
       id: "corifeu",
@@ -109,7 +115,7 @@ window.SITE_CONFIG = {
       agendar: "https://sites.appbarber.com.br/agendamento/barbearialumina-zhfp",
       horario: HORARIO_LUMINA,
       comodidades: ["Wi-Fi", "Estacionamento", "Atende crianças", "Acessibilidade"],
-      foto: null,
+      foto: { src: FOTOS + "barbearialumina-zhfp/68f022ab34f0a.png", posicao: "center 35%" },
     },
     {
       id: "esther",
@@ -125,12 +131,12 @@ window.SITE_CONFIG = {
       agendar: "https://sites.appbarber.com.br/agendamento/barbearialumina-jaud",
       horario: HORARIO_LUMINA,
       comodidades: ["Wi-Fi", "Estacionamento", "Atende crianças"],
-      foto: null,
+      foto: { src: FOTOS + "barbearialumina-jaud/68f020f29a205.png", posicao: "center 70%" },
     },
   ],
 
   passos: {
-    titulo: "Agendar leva *1 minuto*",
+    titulo: "Agendar leva _um minuto_",
     itens: [
       { titulo: "Escolha a unidade", texto: "A mais perto de casa ou do trabalho. O botão de localização ajuda." },
       { titulo: "Escolha no AppBarber", texto: "Serviço, profissional e horário livre, tudo na agenda online da unidade." },
@@ -222,7 +228,7 @@ window.SITE_CONFIG = {
     itens: ["Toalha quente", "Hidratação da pele", "Relaxamento", "Barba bem feita"],
     duracao: 40, // minutos, mostrado no relógio
     incluidaEm: ["Barba e cabelo", "Barba e pezinho", "Corte à máquina e barba"],
-    foto: null,
+    foto: null, // sugestão: barba com toalha quente, sem rosto
   },
 
   assinatura: {
@@ -238,7 +244,7 @@ window.SITE_CONFIG = {
   },
 
   comodidades: {
-    titulo: "Também na *Lumina*",
+    titulo: "Também na _Lumina_",
     itens: [
       { icone: "beer", nome: "Cerveja e café", texto: "Cerveja gelada ou café expresso" },
       { icone: "wifi", nome: "Wi-Fi", texto: "Nas 3 unidades" },
@@ -257,7 +263,6 @@ window.SITE_CONFIG = {
   escola: {
     titulo: "Lucchesi *Academy*",
     subtitulo: "Escola de barbeiros",
-    fundo: "ACADEMY",
     texto:
       "A formação de barbeiros da rede Lumina. Para quem quer fazer da barbearia uma profissão, aprendendo dentro de uma rede com 10 anos de cadeira.",
     detalhe: "Turmas, datas e valores: fale direto com a escola.",
@@ -265,11 +270,10 @@ window.SITE_CONFIG = {
     whatsapp: "5511981166533",
     whatsappTexto: "(11) 98116-6533",
     mensagem: "Olá! Quero saber sobre o curso de barbeiro.",
-    foto: null,
   },
 
   faq: {
-    titulo: "Perguntas *frequentes*",
+    titulo: "Perguntas _frequentes_",
     itens: [
       {
         p: "Como faço para agendar?",

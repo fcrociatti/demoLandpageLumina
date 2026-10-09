@@ -20,9 +20,12 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  // *palavra* vira caixa vermelha
-  const fmt = (s) => esc(s).replace(/\*(.+?)\*/g, "<mark>$1</mark>");
-  const semMarcas = (s) => String(s).replace(/\*/g, "");
+  // *palavra* = caixa vermelha · _palavra_ = serifa itálica
+  const fmt = (s) =>
+    esc(s)
+      .replace(/\*(.+?)\*/g, "<mark>$1</mark>")
+      .replace(/_(.+?)_/g, '<em class="it">$1</em>');
+  const semMarcas = (s) => String(s).replace(/[*_]/g, "");
 
   function confirmar(rotulo) {
     return `<span class="confirmar">[CONFIRMAR${rotulo ? " " + esc(rotulo) : ""}]</span>`;
@@ -37,16 +40,19 @@
   const preco = (n) => "R$ " + n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   const nota = (n) => n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-  function foto(src, alt, extraClass = "") {
-    if (src) {
-      return `<div class="photo-slot has-img ${extraClass}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy"></div>`;
+  // foto: "url" | { src, posicao } | null (vira o espaço [FOTO DO AMBIENTE])
+  function foto(f, alt, extraClass = "", attrs = "") {
+    const src = f && (typeof f === "string" ? f : f.src);
+    if (!src) {
+      return `<div class="photo photo--empty ${extraClass}" ${attrs} role="img" aria-label="Espaço para foto do ambiente">${icon("camera")}<span>[FOTO DO AMBIENTE]</span></div>`;
     }
-    return `<div class="photo-slot ${extraClass}" role="img" aria-label="Espaço para foto do ambiente">${icon("camera")}<span>[FOTO DO AMBIENTE]</span></div>`;
+    const pos = f.posicao ? ` style="object-position:${esc(f.posicao)}"` : "";
+    return `<div class="photo ${extraClass}" ${attrs}><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy" decoding="async"${pos}></div>`;
   }
 
   // Numeração automática das seções: "01 — Unidades"
   let secao = 0;
-  const kicker = (rotulo) => `<p class="kicker"><b>${String(++secao).padStart(2, "0")}</b> ${esc(rotulo)}</p>`;
+  const label = (rotulo) => `<p class="label"><b>${String(++secao).padStart(2, "0")}</b> — ${esc(rotulo)}</p>`;
 
   const ICONES_COMODIDADE = { "Wi-Fi": "wifi", Estacionamento: "car", "Atende crianças": "kid", Acessibilidade: "access" };
 
@@ -142,18 +148,14 @@
 
   function aplicarTema() {
     const r = document.documentElement.style;
-    if (C.cores) {
-      if (C.cores.fundo) r.setProperty("--bg", C.cores.fundo);
-      if (C.cores.texto) r.setProperty("--fg", C.cores.texto);
-      if (C.cores.destaque) r.setProperty("--red", C.cores.destaque);
-    }
+    if (C.cores && C.cores.destaque) r.setProperty("--red", C.cores.destaque);
     document.title = C.previa && C.previa.ativo ? `Prévia · ${C.marca.nomeCompleto}` : C.marca.nomeCompleto;
   }
 
   function renderPrevia() {
     const bar = $("#preview-bar");
     if (!C.previa || !C.previa.ativo) return;
-    bar.textContent = C.previa.texto;
+    bar.innerHTML = `<b>PRÉVIA</b><span>${esc(C.previa.texto)}</span>`;
     bar.hidden = false;
     const atualizar = () => document.documentElement.style.setProperty("--bar-h", bar.offsetHeight + "px");
     atualizar();
@@ -165,18 +167,28 @@
     return [p1, resto.join(" ")];
   }
 
+  // Links do menu: só seções que existem no config
+  function navLinks() {
+    return [
+      ["#unidades", "Unidades", true],
+      ["#servicos", "Serviços", C.servicos],
+      ["#barboterapia", "Barboterapia", C.destaque],
+      ["#assinatura", "Assinatura", C.assinatura],
+      ["#escola", "Escola", C.escola],
+    ]
+      .filter((l) => l[2])
+      .map(([h, t]) => `<a href="${h}">${t}</a>`)
+      .join("");
+  }
+
   function renderTopo() {
     const m = C.marca;
     const [n1, n2] = partesNome();
     const notas = C.unidades
       .filter((u) => typeof u.notaGoogle === "number")
-      .map(
-        (u) => `<a class="rating" href="${esc(linkGoogle(u))}" ${ext} aria-label="${esc(u.nome)}: nota ${nota(u.notaGoogle)} no Google">
-          ${icon("star")} <strong>${nota(u.notaGoogle)}</strong> ${esc(u.nome)}</a>`
-      )
+      .map((u) => `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star")} <strong>${nota(u.notaGoogle)}</strong> ${esc(u.nome)}</a>`)
       .join("");
-    const fotos = m.fotos || [null, null, null];
-    const giro = m.seloGiratorio || `${m.nomeCompleto} · `;
+    const [chamada, desde] = (m.chamada || "").split(/\s·\s(?=desde)/i);
 
     const stats = (C.numeros || [])
       .map(
@@ -187,62 +199,51 @@
       )
       .join("");
 
+    const f = m.foto;
     $("#topo").innerHTML = `
       <div class="wrap">
-        <div class="topbar">
-          <a class="mono" href="#topo" aria-label="${esc(m.nomeCompleto)}"><span class="mono__box">${esc(m.monograma || n1[0])}</span>${esc(m.nome)}</a>
-          <a class="btn btn--primary" href="#unidades">${icon("cal")} Agendar</a>
-        </div>
+        <header class="masthead">
+          <a class="wordmark" href="#topo" aria-label="${esc(m.nomeCompleto)}">${esc(n1)}<span>${esc(n2)}</span></a>
+          <nav class="nav" aria-label="Seções">${navLinks()}</nav>
+          <a class="btn btn--ink" href="#unidades">${icon("cal")} Agendar</a>
+        </header>
+        <div class="dateline"><span>${esc(chamada)}</span>${desde ? `<em class="it">${esc(desde.replace(/^desde/i, "Desde"))}</em>` : ""}</div>
+
         <div class="hero__grid">
-          <div class="hero__copy">
-            <p class="hero__eyebrow">${esc(m.chamada || "")}</p>
-            <h1 class="hero__name" id="hero-titulo"><span>${esc(n1)}</span>${n2 ? `<span class="l2" data-text="${esc(n2)}">${esc(n2)}</span>` : ""}</h1>
-            <p class="hero__phrase">${fmt(m.frase)}</p>
-            <p class="hero__seal">${esc(m.selo)}</p>
+          <div class="hero__copy" data-reveal>
+            <h1 class="hero__title" id="hero-titulo">${fmt(m.frase)}.</h1>
+            ${m.lead ? `<p class="hero__lead">${esc(m.lead)}</p>` : ""}
             <div class="hero__ctas">
               <a class="btn btn--primary btn--lg" href="#unidades">${icon("cal")} Agendar agora</a>
-              <a class="btn btn--ghost btn--lg" href="#servicos">Ver o cardápio ${icon("arrow")}</a>
+              <a class="link" href="#servicos">Ver o cardápio ${icon("arrow")}</a>
             </div>
-            ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}</div><p class="ratings-src">Notas no Google · toque para ver</p>` : ""}
+            ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src" style="align-self:center">no Google</span></div>` : ""}
           </div>
-          <div class="collage" aria-hidden="false">
-            <span class="collage__bg-year" aria-hidden="true">2016</span>
-            <div class="frame frame--b">${foto(fotos[1], `Ambiente da ${m.nomeCompleto}`)}</div>
-            <div class="frame frame--a">${foto(fotos[0], `Ambiente da ${m.nomeCompleto}`)}</div>
-            <div class="frame frame--c">${foto(fotos[2], `Ambiente da ${m.nomeCompleto}`)}</div>
-            <span class="pole" aria-hidden="true"></span>
-            <div class="badge" aria-hidden="true">
-              <svg class="ring" viewBox="0 0 132 132"><defs><path id="badge-path" d="M66,66 m-50,0 a50,50 0 1,1 100,0 a50,50 0 1,1 -100,0"/></defs>
-                <text textLength="312" lengthAdjust="spacingAndGlyphs"><textPath href="#badge-path" textLength="312">${esc(giro)}</textPath></text></svg>
-              ${icon("scissors")}
-            </div>
-          </div>
+          <figure class="hero__photo" data-reveal style="--d:.1s;margin-block:0">
+            ${foto(f, f && f.legenda ? f.legenda : `Ambiente da ${m.nomeCompleto}`, "", "data-luz")}
+            ${f && f.legenda ? `<figcaption class="caption">${esc(f.legenda)}</figcaption>` : ""}
+          </figure>
         </div>
         ${stats ? `<div class="stats">${stats}</div>` : ""}
       </div>`;
-  }
-
-  function renderFaixa() {
-    const el = $("#faixa");
-    if (!C.faixa || !C.faixa.length) return el.remove();
-    const grupo = [...C.faixa, ...C.faixa].map((t) => `<span class="ticker__item">${esc(t)} ${icon("scissors")}</span>`).join("");
-    el.innerHTML = `<div class="ticker__track"><div style="display:flex">${grupo}</div><div style="display:flex">${grupo}</div></div>`;
   }
 
   function renderSobre() {
     const s = C.sobre;
     if (!s) return $("#sobre").remove();
     const pilares = s.pilares || semMarcas(C.marca.frase).split(/,\s*|\s+e\s+/).filter(Boolean);
+    const fotos = s.fotos || [];
     $("#sobre").innerHTML = `
-      <div class="wrap about__grid">
+      <div class="wrap about">
         <div data-reveal>
-          ${kicker("Sobre")}
-          <h2 class="section__title" id="sobre-titulo">${fmt(s.titulo)}</h2>
-          <div class="about__text" style="margin-top:20px">${s.texto.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
+          ${label("Sobre")}
+          <h2 class="title" id="sobre-titulo">${fmt(s.titulo)}</h2>
+          <div class="about__text" style="margin-top:24px">${s.texto.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
+          <p class="pillars" aria-label="Valores">${pilares.map((p) => `<span>${esc(p[0].toUpperCase() + p.slice(1))}.</span>`).join("")}</p>
         </div>
-        <ul class="pillars" data-reveal style="--d:.12s" aria-label="Valores">
-          ${pilares.map((p) => `<li class="pillar">${esc(p)}</li>`).join("")}
-        </ul>
+        ${fotos.length ? `<div class="about__photos" data-reveal style="--d:.12s">
+          ${fotos.map((f) => `<figure>${foto(f, f.legenda || "")}${f.legenda ? `<figcaption class="caption">${esc(f.legenda)}</figcaption>` : ""}</figure>`).join("")}
+        </div>` : ""}
       </div>`;
   }
 
@@ -254,11 +255,11 @@
       <div class="wrap">
         <div class="units-head">
           <div data-reveal>
-            ${kicker("Unidades")}
-            <h2 class="section__title" id="unidades-titulo">${fmt(t.titulo)}</h2>
-            <p class="section__lead">${esc(t.lead || "")}</p>
+            ${label("Unidades")}
+            <h2 class="title" id="unidades-titulo">${fmt(t.titulo)}</h2>
+            <p class="lead">${esc(t.lead || "")}</p>
             <div class="nearest">
-              <button type="button" class="btn btn--light" id="btn-perto">${icon("pin")}<span>Qual fica mais perto de mim?</span></button>
+              <button type="button" class="btn btn--ink" id="btn-perto">${icon("pin")}<span>Qual fica mais perto de mim?</span></button>
               <p class="nearest__msg" id="perto-msg" aria-live="polite"></p>
             </div>
           </div>
@@ -295,8 +296,10 @@
         <span class="unit__flag">Mais perto de você</span>
         ${u.foto !== undefined ? foto(u.foto, `Unidade ${u.nome}`, "unit__photo") : ""}
         <div class="unit__body">
-          <span class="unit__num" aria-hidden="true">${String(i + 1).padStart(2, "0")}</span>
-          <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
+          <div class="unit__top">
+            <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
+            <span class="unit__num" aria-hidden="true">nº ${String(i + 1).padStart(2, "0")}</span>
+          </div>
           <div class="unit__status"><span class="status" data-status>…</span><span class="unit__when" data-when></span></div>
           <p class="unit__addr">${val(u.endereco, "endereço")}<small>${[u.bairro, u.cidade].filter(Boolean).map(esc).join(" · ")}</small></p>
           ${chips ? `<div class="chips">${chips}</div>` : ""}
@@ -307,7 +310,7 @@
             ${botao({ href: u.agendar, classe: "btn--primary", texto: "Agendar", ico: "cal", falta: "link" })}
             <div class="row">
               ${botao({ href: u.whatsapp && linkWa(u.whatsapp), classe: "btn--wa", texto: "WhatsApp", ico: "wa", falta: "número" })}
-              ${botao({ href: linkRota(u), classe: "btn--ghost", texto: "Como chegar", ico: "route" })}
+              ${botao({ href: linkRota(u), classe: "btn--line", texto: "Como chegar", ico: "route" })}
             </div>
           </div>
         </div>
@@ -332,15 +335,15 @@
   function renderMapa(eu) {
     const box = $("#mapa");
     if (!box) return;
-    const W = 600, H = 300, PX = 130, PY = 70;
+    const W = 600, H = 320, PX = 130, PY = 80;
     const pts = C.unidades.map((u) => ({ u, lat: u.lat, lng: u.lng }));
     const todos = eu ? [...pts, eu] : pts;
     const k = Math.cos((pts[0].lat * Math.PI) / 180);
     const xs = todos.map((p) => p.lng * k), ys = todos.map((p) => -p.lat);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-    const esc_ = Math.min((W - 2 * PX) / (maxX - minX || 1), (H - 2 * PY) / (maxY - minY || 1));
-    const offX = (W - (maxX - minX) * esc_) / 2, offY = (H - (maxY - minY) * esc_) / 2;
-    const proj = (p) => [offX + (p.lng * k - minX) * esc_, offY + (-p.lat - minY) * esc_];
+    const escala = Math.min((W - 2 * PX) / (maxX - minX || 1), (H - 2 * PY) / (maxY - minY || 1));
+    const offX = (W - (maxX - minX) * escala) / 2, offY = (H - (maxY - minY) * escala) / 2;
+    const proj = (p) => [offX + (p.lng * k - minX) * escala, offY + (-p.lat - minY) * escala];
 
     let grade = "";
     for (let x = 0; x <= W; x += 40) grade += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`;
@@ -371,23 +374,20 @@
     let me = "";
     if (eu) {
       const [x, y] = proj(eu);
-      me = `<g class="map__me"><circle class="glow" cx="${x}" cy="${y}" r="22"/><circle class="dot" cx="${x}" cy="${y}" r="8"/>
-        <text x="${x}" y="${y + 30}" text-anchor="middle">Você</text></g>`;
+      me = `<g class="map__me"><circle class="glow" cx="${x}" cy="${y}" r="22"/><circle class="dot" cx="${x}" cy="${y}" r="9"/>
+        <text x="${x}" y="${y + 34}" text-anchor="middle">Você</text></g>`;
     }
 
     box.innerHTML = `
       <svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa esquemático das unidades">
         <g class="map__grid">${grade}</g>
-        <text class="map__label" x="${W / 2}" y="${H - 28}" text-anchor="middle">BUTANTÃ</text>
+        <text class="map__label" x="${W / 2}" y="${H - 26}" text-anchor="middle">BUTANTÃ</text>
         ${ligacoes}${pontos}${me}
       </svg>
-      <p class="map__note">Mapa esquemático · posições reais</p>`;
+      <p class="map__note">mapa esquemático · posições reais</p>`;
 
     $$(".map__pt", box).forEach((g) => {
-      const ir = () => {
-        const alvo = document.getElementById(g.dataset.alvo);
-        alvo.scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
-      };
+      const ir = () => document.getElementById(g.dataset.alvo).scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
       g.addEventListener("click", ir);
       g.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), ir()));
     });
@@ -399,10 +399,10 @@
     $("#como-agendar").innerHTML = `
       <div class="wrap">
         <div data-reveal>
-          ${kicker("Como agendar")}
-          <h2 class="section__title" id="passos-titulo">${fmt(p.titulo)}</h2>
+          ${label("Como agendar")}
+          <h2 class="title" id="passos-titulo">${fmt(p.titulo)}</h2>
         </div>
-        <ol class="steps" style="list-style:none;padding:0">
+        <ol class="steps">
           ${p.itens.map((s, i) => `<li class="step" data-reveal style="--d:${i * 0.1}s"><h3>${esc(s.titulo)}</h3><p>${esc(s.texto)}</p></li>`).join("")}
         </ol>
       </div>`;
@@ -412,36 +412,41 @@
 
   function itemCardapio(i, n) {
     const valor = typeof i.preco === "number" ? preco(i.preco) : confirmar("valor");
+    const desc = [i.desc && esc(i.desc), i.min && `${i.min} min`].filter(Boolean).join(" · ");
     return `<li class="menu-item" style="animation-delay:${n * 0.03}s">
       <span class="menu-item__name">${esc(i.nome)}${i.unidade ? `<span class="menu-item__tag">${esc(i.unidade)}</span>` : ""}</span>
+      <span class="menu-item__dots" aria-hidden="true"></span>
       <span class="menu-item__price">${i.aPartirDe ? "<small>a partir de</small>" : ""}${valor}</span>
-      ${i.desc || i.min ? `<span class="menu-item__desc">${[i.desc && esc(i.desc), i.min && `<span class="menu-item__min">${i.min} min</span>`].filter(Boolean).join(" · ")}</span>` : ""}
+      ${desc ? `<span class="menu-item__desc">${desc}</span>` : ""}
     </li>`;
   }
 
   function renderServicos() {
     const s = C.servicos;
+    if (!s) return $("#servicos").remove();
     const cats = s.categorias || [{ nome: "Serviços", itens: s.itens || [] }];
-    $("#servicos").innerHTML = `
+    const sec = $("#servicos");
+    sec.setAttribute("data-luz", "");
+    sec.innerHTML = `
       <div class="wrap">
         <div class="menu-head" data-reveal>
           <div>
-            ${kicker("Serviços")}
-            <h2 class="section__title" id="servicos-titulo">${fmt(s.titulo)}</h2>
+            ${label("Serviços")}
+            <h2 class="title" id="servicos-titulo">${fmt(s.titulo)}</h2>
           </div>
           <p class="menu-note">${esc(s.aviso)}</p>
         </div>
         <div class="tabs" role="tablist" aria-label="Categorias de serviço">
-          ${cats.map((c, i) => `<button type="button" class="tab" role="tab" id="tab-${i}" aria-controls="painel-servicos" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-cat="${i}">${esc(c.nome)}</button>`).join("")}
+          ${cats.map((c, i) => `<button type="button" class="tab" role="tab" id="tab-${i}" aria-controls="painel-servicos" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(c.nome)}</button>`).join("")}
         </div>
         <ul class="menu-list" id="painel-servicos" role="tabpanel" aria-labelledby="tab-0"></ul>
         <div class="menu-cta">
-          <button type="button" class="btn btn--dark btn--lg" data-escolher-unidade>${esc(s.botao)} ${icon("arrow")}</button>
+          <button type="button" class="btn btn--paper btn--lg" data-escolher-unidade>${esc(s.botao)} ${icon("arrow")}</button>
         </div>
       </div>`;
 
     const painel = $("#painel-servicos");
-    const abas = $$(".tab", $("#servicos"));
+    const abas = $$(".tab", sec);
     const mostrar = (idx, foco) => {
       abas.forEach((a, i) => {
         a.setAttribute("aria-selected", i === idx);
@@ -451,7 +456,7 @@
       painel.innerHTML = cats[idx].itens.map(itemCardapio).join("");
       if (foco) abas[idx].focus();
       const lista = abas[idx].parentElement;
-      if (lista.scrollWidth > lista.clientWidth) lista.scrollTo({ left: abas[idx].offsetLeft - 16, behavior: REDUZIR ? "auto" : "smooth" });
+      if (lista.scrollWidth > lista.clientWidth) lista.scrollTo({ left: abas[idx].offsetLeft - 20, behavior: REDUZIR ? "auto" : "smooth" });
     };
     abas.forEach((a, i) => {
       a.addEventListener("click", () => mostrar(i));
@@ -473,7 +478,7 @@
     let ticks = "";
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
-      const r1 = 146, r2 = i % 3 === 0 ? 136 : 141;
+      const r1 = 148, r2 = i % 3 === 0 ? 137 : 142;
       ticks += `<line x1="${150 + r1 * Math.cos(a)}" y1="${150 + r1 * Math.sin(a)}" x2="${150 + r2 * Math.cos(a)}" y2="${150 + r2 * Math.sin(a)}"/>`;
     }
 
@@ -485,23 +490,23 @@
             <div class="steam" aria-hidden="true"><span></span><span></span><span></span></div>
             <svg viewBox="0 0 300 300" aria-hidden="true">
               <g class="dial__ticks">${ticks}</g>
-              <circle class="dial__track" cx="150" cy="150" r="${R}" fill="none" stroke-width="14"/>
-              <circle class="dial__fill" cx="150" cy="150" r="${R}" fill="none" stroke-width="14"
+              <circle class="dial__track" cx="150" cy="150" r="${R}" fill="none" stroke-width="10"/>
+              <circle class="dial__fill" cx="150" cy="150" r="${R}" fill="none" stroke-width="10"
                 stroke-dasharray="${CIRC}" stroke-dashoffset="${REDUZIR ? CIRC * (1 - frac) : CIRC}"/>
             </svg>
             <div class="dial__center"><p class="dial__pre">até</p><p class="dial__value">${d.duracao}</p><p class="dial__unit">minutos</p></div>
           </div>
         </div>` : ""}
         <div data-reveal style="--d:.1s">
-          ${kicker("O diferencial")}
-          <h2 class="section__title" id="barboterapia-titulo">${fmt(d.titulo)}</h2>
+          ${label("O diferencial")}
+          <h2 class="title" id="barboterapia-titulo">${fmt(d.titulo)}</h2>
           <p class="feature__sub">${esc(d.subtitulo)}</p>
-          <p class="feature__text">${esc(d.texto)}</p>
+          <p class="lead">${esc(d.texto)}</p>
           <ul class="checklist">${d.itens.map((i) => `<li>${icon("check")} ${esc(i)}</li>`).join("")}</ul>
           ${d.incluidaEm ? `<div class="included"><p>Incluída em</p><div class="chips">${d.incluidaEm.map((s) => `<span class="chip">${icon("scissors")} ${esc(s)}</span>`).join("")}</div></div>` : ""}
           <button type="button" class="btn btn--primary btn--lg" data-escolher-unidade>${icon("cal")} Agendar barba</button>
         </div>
-        <div class="feature__photo" data-reveal>${foto(d.foto, "Barboterapia com toalha quente")}</div>
+        ${"foto" in d ? `<div class="feature__photo" data-reveal>${foto(d.foto, "Barboterapia com toalha quente")}</div>` : ""}
       </div>`;
   }
 
@@ -512,8 +517,8 @@
     $("#assinatura").innerHTML = `
       <div class="wrap plan">
         <div data-reveal>
-          ${kicker("Plano")}
-          <h2 class="section__title" id="assinatura-titulo">${fmt(a.titulo)}</h2>
+          ${label("Plano")}
+          <h2 class="title" id="assinatura-titulo">${fmt(a.titulo)}</h2>
           <p class="plan__text">${esc(a.texto)}</p>
           ${a.servicosPlano ? `<div class="plan__services"><p>${esc(a.servicosNota || "Serviços do plano")}</p>
             <div class="chips">${a.servicosPlano.map((s) => `<span class="chip">${icon("check")} ${esc(s)}</span>`).join("")}</div></div>` : ""}
@@ -535,14 +540,14 @@
     $("#comodidades").innerHTML = `
       <div class="wrap">
         <div data-reveal>
-          ${kicker("Comodidades")}
-          <h2 class="section__title" id="comodidades-titulo">${fmt(c.titulo)}</h2>
+          ${label("Comodidades")}
+          <h2 class="title" id="comodidades-titulo">${fmt(c.titulo)}</h2>
         </div>
         <ul class="amenities">
           ${c.itens
             .map(
               (i, n) => `<li class="amenity" data-reveal style="--d:${(n % 3) * 0.08}s">
-                <span class="amenity__icon">${icon(i.icone)}</span>
+                ${icon(i.icone)}
                 <p class="amenity__name">${esc(i.nome)}</p>
                 <p class="amenity__text">${val(i.texto, i.confirmar)}</p>
               </li>`
@@ -551,7 +556,7 @@
         </ul>
         ${pg ? `<div class="payments" data-reveal>
           <h3>${esc(pg.titulo)}</h3>
-          <div class="chips">${pg.itens.map((p) => `<span class="chip">${esc(p)}</span>`).join("")}</div>
+          <div class="chips" style="margin-top:0">${pg.itens.map((p) => `<span class="chip">${esc(p)}</span>`).join("")}</div>
           ${pg.nota ? `<p>${esc(pg.nota)}</p>` : ""}
         </div>` : ""}
       </div>`;
@@ -562,19 +567,17 @@
     if (!e) return $("#escola").remove();
     $("#escola").innerHTML = `
       <div class="wrap">
-        <div class="school" data-reveal>
-          ${e.fundo ? `<span class="school__bg" aria-hidden="true">${esc(e.fundo)}</span>` : ""}
+        <div class="school" data-luz data-reveal>
           <div>
-            ${kicker(e.subtitulo)}
-            <h2 class="section__title" id="escola-titulo">${fmt(e.titulo)}</h2>
-            <p class="feature__text">${esc(e.texto)}</p>
-            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` WhatsApp <span style="white-space:nowrap">${esc(e.whatsappTexto)}</span>.` : ""}</p>` : ""}
-            <div class="school__actions">
-              ${botao({ href: e.whatsapp && linkWa(e.whatsapp, e.mensagem), classe: "btn--wa", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
-              ${botao({ href: e.instagram, classe: "btn--ghost", texto: "Instagram da escola", ico: "ig", falta: "link" })}
-            </div>
+            ${label(e.subtitulo)}
+            <h2 class="title" id="escola-titulo">${fmt(e.titulo)}</h2>
+            <p class="school__text">${esc(e.texto)}</p>
+            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` <span style="white-space:nowrap">${esc(e.whatsappTexto)}</span>` : ""}</p>` : ""}
           </div>
-          ${foto(e.foto, semMarcas(e.titulo))}
+          <div class="school__actions">
+            ${botao({ href: e.whatsapp && linkWa(e.whatsapp, e.mensagem), classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
+            ${botao({ href: e.instagram, classe: "btn--ghost-light btn--lg", texto: "Instagram da escola", ico: "ig", falta: "link" })}
+          </div>
         </div>
       </div>`;
   }
@@ -585,8 +588,8 @@
     $("#faq").innerHTML = `
       <div class="wrap faq-grid">
         <div data-reveal>
-          ${kicker("Dúvidas")}
-          <h2 class="section__title" id="faq-titulo">${fmt(f.titulo)}</h2>
+          ${label("Dúvidas")}
+          <h2 class="title" id="faq-titulo">${fmt(f.titulo)}</h2>
         </div>
         <div class="faq-list" data-reveal style="--d:.1s">
           ${f.itens.map((q) => `<details class="faq-item"><summary>${esc(q.p)} ${icon("plus")}</summary><p>${esc(q.r)}</p></details>`).join("")}
@@ -599,18 +602,11 @@
     const t = C.instagram;
     if (!ig || !t) return $("#instagram").remove();
     $("#instagram").innerHTML = `
-      <div class="wrap">
-        <div class="ig" data-reveal>
-          <div class="ig__inner">
-            <div>
-              ${kicker("Instagram")}
-              <h2 class="section__title" id="ig-titulo" style="font-size:clamp(1.6rem,7vw,2.6rem)">${fmt(t.titulo)}</h2>
-              <p class="ig__handle">${esc(ig.usuario)}</p>
-              <p class="ig__text">${esc(t.texto)}</p>
-            </div>
-            <a class="btn btn--light btn--lg" href="${esc(ig.url)}" ${ext}>${icon("ig")} Seguir no Instagram</a>
-          </div>
-        </div>
+      <div class="wrap ig" data-reveal>
+        ${label("Instagram")}
+        <h2 class="ig__handle" id="ig-titulo">${esc(ig.usuario)}</h2>
+        <p class="ig__text">${esc(t.texto)}</p>
+        <a class="btn btn--ink btn--lg" href="${esc(ig.url)}" ${ext}>${icon("ig")} Seguir no Instagram</a>
       </div>`;
   }
 
@@ -618,22 +614,22 @@
     const [n1, n2] = partesNome();
     const ig = C.redes && C.redes.instagram;
     const tc = C.trabalheConosco;
-    $("#rodape").innerHTML = `
+    const rod = $("#rodape");
+    rod.setAttribute("data-luz", "");
+    rod.innerHTML = `
       <div class="wrap">
-        <div class="footer__top">
-          <p class="footer__phrase">${fmt(C.marca.frase)}</p>
-          <div class="footer__units">
-            ${C.unidades
-              .map(
-                (u) => `<div class="footer__unit">
-                  <h3>${esc(u.nome)}</h3>
-                  <p>${val(u.endereco, "endereço")}</p>
-                  <p>${u.telefone ? `<a href="${linkTel(u.telefone)}">${esc(u.telefone)}</a>` : confirmar("telefone")}</p>
-                  ${typeof u.notaGoogle === "number" ? `<p><a href="${esc(linkGoogle(u))}" ${ext}>★ ${nota(u.notaGoogle)} · ver no Google</a></p>` : ""}
-                </div>`
-              )
-              .join("")}
-          </div>
+        <p class="footer__phrase">${esc(semMarcas(C.marca.frase))}.</p>
+        <div class="footer__units">
+          ${C.unidades
+            .map(
+              (u) => `<div class="footer__unit">
+                <h3>${esc(u.nome)}</h3>
+                <p>${val(u.endereco, "endereço")}</p>
+                <p>${u.telefone ? `<a href="${linkTel(u.telefone)}">${esc(u.telefone)}</a>` : confirmar("telefone")}</p>
+                ${typeof u.notaGoogle === "number" ? `<p><a href="${esc(linkGoogle(u))}" ${ext}>★ ${nota(u.notaGoogle)} · ver no Google</a></p>` : ""}
+              </div>`
+            )
+            .join("")}
         </div>
         <nav class="footer__links" aria-label="Links">
           ${ig ? `<a href="${esc(ig.url)}" ${ext}>${icon("ig")} ${esc(ig.usuario)}</a>` : ""}
@@ -652,10 +648,12 @@
     $("#dialog-lista").innerHTML = C.unidades
       .map((u) =>
         u.agendar
-          ? `<a class="btn btn--ghost btn--block" href="${esc(u.agendar)}" ${ext}><span>${esc(u.nome)}</span>${icon("arrow")}</a>`
+          ? `<a class="btn btn--line btn--block" href="${esc(u.agendar)}" ${ext}><span>${esc(u.nome)}</span>${icon("arrow")}</a>`
           : `<span class="btn btn--block" aria-disabled="true">${esc(u.nome)} ${confirmar("link")}</span>`
       )
       .join("");
+    const fechar = $("form button", dlg);
+    if (fechar) fechar.className = "btn btn--ink btn--block";
 
     document.addEventListener("click", (ev) => {
       if (!ev.target.closest("[data-escolher-unidade]")) return;
@@ -682,8 +680,8 @@
   function iniciarPerto() {
     const btn = $("#btn-perto");
     const msg = $("#perto-msg");
-    const label = $("span", btn);
-    const textoOriginal = label.textContent;
+    const rotulo = $("span", btn);
+    const textoOriginal = rotulo.textContent;
 
     if (!("geolocation" in navigator)) {
       btn.hidden = true;
@@ -692,7 +690,7 @@
 
     btn.addEventListener("click", () => {
       btn.disabled = true;
-      label.textContent = "Procurando…";
+      rotulo.textContent = "Procurando…";
       msg.textContent = "";
 
       navigator.geolocation.getCurrentPosition(
@@ -710,12 +708,12 @@
           msg.textContent = `A unidade ${melhor.u.nome} é a mais perto de você.`;
           // Só desenha "você" no mapa se estiver na região
           renderMapa(melhor.km < 15 ? eu : null);
-          label.textContent = textoOriginal;
+          rotulo.textContent = textoOriginal;
           btn.disabled = false;
           melhor.card.scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
         },
         (err) => {
-          label.textContent = textoOriginal;
+          rotulo.textContent = textoOriginal;
           btn.disabled = false;
           msg.textContent =
             err.code === err.PERMISSION_DENIED
@@ -727,47 +725,41 @@
     });
   }
 
-  /* ---------- Efeito Lumina (foco de luz) ---------- */
+  /* ---------- Efeito Lumina: foco de luz nos elementos [data-luz] ---------- */
 
   function iniciarLuz() {
-    const layer = $(".lumina-light");
-    const spot = $(".lumina-light__spot");
+    const alvos = $$("[data-luz]");
+    if (!alvos.length || REDUZIR) return; // reduzir movimento: luz parada no centro
     const temMouse = matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-    if (REDUZIR || !temMouse) {
-      // Celular: brilho ambiente lento (CSS). Reduzir movimento: brilho parado.
-      layer.classList.add("is-ambient", "is-on");
+    if (!temMouse) {
+      // Celular: o foco passeia devagar sozinho (animação CSS)
+      alvos.forEach((el) => el.classList.add("luz-auto"));
       return;
     }
 
-    let x = innerWidth / 2, y = innerHeight * 0.3;
-    let tx = x, ty = y, rodando = false;
-
-    function passo() {
-      // Suaviza o movimento para a luz "seguir" o cursor
-      x += (tx - x) * 0.14;
-      y += (ty - y) * 0.14;
-      spot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      if (Math.abs(tx - x) > 0.5 || Math.abs(ty - y) > 0.5) requestAnimationFrame(passo);
-      else rodando = false;
-    }
-
+    let px = 0, py = 0, agendado = false;
+    const aplicar = () => {
+      agendado = false;
+      for (const el of alvos) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > innerHeight) continue;
+        el.style.setProperty("--lx", (((px - r.left) / r.width) * 100).toFixed(1) + "%");
+        el.style.setProperty("--ly", (((py - r.top) / r.height) * 100).toFixed(1) + "%");
+      }
+    };
     window.addEventListener(
       "pointermove",
       (e) => {
-        tx = e.clientX;
-        ty = e.clientY;
-        layer.classList.add("is-on");
-        if (!rodando) {
-          rodando = true;
-          requestAnimationFrame(passo);
+        px = e.clientX;
+        py = e.clientY;
+        if (!agendado) {
+          agendado = true;
+          requestAnimationFrame(aplicar);
         }
       },
       { passive: true }
     );
-    document.documentElement.addEventListener("mouseleave", () => layer.classList.remove("is-on"));
-    spot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    layer.classList.add("is-on");
   }
 
   /* ---------- Entrada ao rolar + relógio ---------- */
@@ -777,8 +769,7 @@
     const encherDial = () => {
       if (!dial) return;
       const c = $(".dial__fill", dial);
-      const circ = Number(c.getAttribute("stroke-dasharray"));
-      c.style.strokeDashoffset = circ * (1 - Number(dial.dataset.frac));
+      c.style.strokeDashoffset = Number(c.getAttribute("stroke-dasharray")) * (1 - Number(dial.dataset.frac));
     };
 
     if (REDUZIR || !("IntersectionObserver" in window)) {
@@ -791,7 +782,7 @@
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           e.target.classList.add("is-in");
-          if (e.target.contains(dial)) setTimeout(encherDial, 250);
+          if (dial && e.target.contains(dial)) setTimeout(encherDial, 250);
           io.unobserve(e.target);
         }
       },
@@ -823,7 +814,6 @@
   aplicarTema();
   renderPrevia();
   renderTopo();
-  renderFaixa();
   renderSobre();
   renderUnidades();
   renderPassos();

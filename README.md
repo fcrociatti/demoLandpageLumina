@@ -31,8 +31,13 @@ assets/         fotos
 
 ### Fotos
 
-Coloque a imagem em `assets/` (ex.: `assets/bonfiglioli.jpg`, até ~300 KB,
-formato horizontal) e informe o caminho no campo `foto` do `config.js`.
+Nesta prévia as fotos vêm direto da galeria pública da Lumina no AppBarber
+(só ambiente e detalhes, sem rosto de cliente). Se a barbearia trocar as fotos
+lá, elas somem daqui: para fixar, salve as imagens em `assets/` e troque o
+`src` no `config.js` (ex.: `"assets/bonfiglioli.jpg"`, até ~300 KB, horizontal).
+
+O campo `posicao` ajusta o enquadramento (ex.: `"15% center"` corta a direita).
+Foto `null` mostra o espaço [FOTO DO AMBIENTE].
 Não use fotos com rosto de clientes sem autorização.
 
 ## Testar no computador
