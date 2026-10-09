@@ -61,7 +61,7 @@ Dias: `dom seg ter qua qui sex sab`. Feriados não são considerados.
 
 ## Publicar no GitHub Pages
 
-1. Envie os arquivos para o repositório `previa-lumina` no GitHub.
+1. Envie os arquivos para o repositório `demoLandpageLumina` no GitHub.
 2. No GitHub: **Settings → Pages → Build and deployment**.
 3. Em *Source* escolha **Deploy from a branch**, branch **main**, pasta **/(root)**, e salve.
-4. Em 1 a 2 minutos o site fica em `https://fcrociatti.github.io/previa-lumina/`.
+4. Em 1 a 2 minutos o site fica em `https://fcrociatti.github.io/demoLandpageLumina/`.
