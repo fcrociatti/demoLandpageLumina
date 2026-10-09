@@ -13,6 +13,9 @@
   const DIAS_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
   const DIAS_LABEL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const REDUZIR = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const URLQ = new URLSearchParams(location.search);
+  // Pendências ([CONFIRMAR], foto faltando): escondidas, a não ser que o config ou ?pendencias=1 peça
+  const PEND = C.mostrarPendencias === true || URLQ.get("pendencias") === "1";
 
   /* ---------- Utilidades de texto ---------- */
 
@@ -31,19 +34,23 @@
     return `<span class="confirmar">[CONFIRMAR${rotulo ? " " + esc(rotulo) : ""}]</span>`;
   }
 
-  // Valor do config ou o marcador [CONFIRMAR]
+  const vazio = (v) => v === null || v === undefined || v === "";
+
+  // Valor do config; se faltar, [CONFIRMAR] (com pendências) ou nada
   function val(v, rotulo) {
-    return v === null || v === undefined || v === "" ? confirmar(rotulo) : esc(v);
+    if (!vazio(v)) return esc(v);
+    return PEND ? confirmar(rotulo) : "";
   }
 
   const icon = (id, extra = "") => `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
   const preco = (n) => "R$ " + n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   const nota = (n) => n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-  // foto: "url" | { src, posicao } | null (vira o espaço [FOTO DO AMBIENTE])
+  // foto: "url" | { src, posicao } | null (pendência: espaço [FOTO DO AMBIENTE] ou nada)
   function foto(f, alt, extraClass = "", attrs = "") {
     const src = f && (typeof f === "string" ? f : f.src);
     if (!src) {
+      if (!PEND) return "";
       return `<div class="photo photo--empty ${extraClass}" ${attrs} role="img" aria-label="Espaço para foto do ambiente">${icon("camera")}<span>[FOTO DO AMBIENTE]</span></div>`;
     }
     // A foto do topo carrega logo; as demais só perto da tela
@@ -66,6 +73,7 @@
 
   function botao({ href, classe, texto, ico, falta }) {
     if (!href) {
+      if (!PEND) return "";
       return `<span class="btn ${classe}" aria-disabled="true">${ico ? icon(ico) : ""}${esc(texto)} ${confirmar(falta)}</span>`;
     }
     return `<a class="btn ${classe}" href="${esc(href)}" ${href.startsWith("http") ? ext : ""}>${ico ? icon(ico) : ""}${esc(texto)}</a>`;
@@ -144,9 +152,20 @@
 
   /* ---------- Render ---------- */
 
+  // Tema claro ou escuro: config.tema, ou ?tema=escuro / ?tema=claro para comparar.
+  // Fundo e texto vêm de config.cores; os tons intermediários o CSS deriva deles.
   function aplicarTema() {
-    const r = document.documentElement.style;
+    const raiz = document.documentElement;
+    const r = raiz.style;
+    const pedido = (URLQ.get("tema") || C.tema || "claro").toLowerCase();
+    const tema = pedido === "escuro" ? "escuro" : "claro";
+    raiz.dataset.tema = tema;
+    const cores = (C.cores && C.cores[tema]) || {};
+    if (cores.fundo) r.setProperty("--paper", cores.fundo);
+    if (cores.texto) r.setProperty("--ink", cores.texto);
     if (C.cores && C.cores.destaque) r.setProperty("--red", C.cores.destaque);
+    const meta = $('meta[name="theme-color"]');
+    if (meta && cores.fundo) meta.content = cores.fundo;
     document.title = C.previa && C.previa.ativo ? `Prévia · ${C.marca.nomeCompleto}` : C.marca.nomeCompleto;
   }
 
@@ -165,14 +184,11 @@
   // Links do menu, na ordem da página: só seções que existem no config
   function navLinks() {
     return [
-      ["#sobre", "Sobre", C.sobre],
       ["#unidades", "Unidades", true],
       ["#servicos", "Serviços", C.servicos],
       ["#barboterapia", "Barboterapia", C.destaque],
       ["#assinatura", "Assinatura", C.assinatura],
-      ["#comodidades", "Comodidades", C.comodidades],
       ["#escola", "Escola", C.escola],
-      ["#faq", "Dúvidas", C.faq],
     ]
       .filter((l) => l[2])
       .map(([h, t]) => `<a href="${h}" data-nav="${h.slice(1)}">${t}</a>`)
@@ -206,7 +222,7 @@
             ${m.lead ? `<p class="hero__lead">${esc(m.lead)}</p>` : ""}
             <div class="hero__ctas">
               <a class="btn btn--primary btn--lg" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar horário</a>
-              <a class="link" href="#sobre">Conheça a Lumina ${icon("arrow")}</a>
+              <a class="link" href="#unidades">Ver as ${C.unidades.length} unidades ${icon("arrow")}</a>
             </div>
             ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src">no Google</span></div>` : ""}
           </div>
@@ -218,26 +234,20 @@
       </div>`;
   }
 
-  function renderSobre() {
-    const s = C.sobre;
-    if (!s) return $("#sobre").remove();
-    const fotos = s.fotos || [];
-    $("#sobre").innerHTML = `
-      <div class="wrap about">
-        <div>
-          <h2 class="title" id="sobre-titulo">${fmt(s.titulo)}</h2>
-          <div class="about__text">${s.texto.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
-        </div>
-        ${fotos.length ? `<div class="about__photos">
-          ${fotos.map((f) => `<figure>${foto(f, f.legenda || "")}${f.legenda ? `<figcaption class="caption">${esc(f.legenda)}</figcaption>` : ""}</figure>`).join("")}
-        </div>` : ""}
-      </div>`;
-  }
-
   /* --- Unidades + mapa --- */
+
+  // Mesmo horário em todas as unidades? Então a tabela aparece uma vez, acima dos cartões.
+  const mesmoHorario = () => C.unidades.every((u) => JSON.stringify(u.horario) === JSON.stringify(C.unidades[0].horario));
+
+  const linhasHorario = (horario) =>
+    gruposHorario(horario)
+      .map((g) => `<div class="hours__row" data-dias="${g.dias.join(",")}"><span>${esc(g.rotulo)}</span><span>${esc(g.horas)}</span></div>`)
+      .join("");
 
   function renderUnidades() {
     const t = C.textoUnidades || { titulo: "Unidades", lead: "" };
+    const n = C.unidades.length;
+    const unico = mesmoHorario();
     $("#unidades").innerHTML = `
       <div class="wrap">
         <div class="units-head">
@@ -251,9 +261,14 @@
           </div>
           <div class="map" id="mapa"></div>
         </div>
+        ${unico ? `<div class="hours-all">
+          <p class="hours-all__title">${n > 1 ? `Mesmo horário nas ${n} unidades` : "Horário"}</p>
+          <div class="hours hours--all" aria-label="Horário de funcionamento">${linhasHorario(C.unidades[0].horario)}</div>
+        </div>` : ""}
         <div class="units" id="lista-unidades">
-          ${C.unidades.map(cartaoUnidade).join("")}
+          ${C.unidades.map((u) => cartaoUnidade(u, !unico)).join("")}
         </div>
+        ${n > 1 ? `<p class="units-hint" aria-hidden="true">Deslize para ver as ${n} unidades</p>` : ""}
       </div>`;
 
     renderMapa(null);
@@ -262,19 +277,16 @@
     document.addEventListener("visibilitychange", () => !document.hidden && atualizarStatus());
   }
 
-  function cartaoUnidade(u) {
+  function cartaoUnidade(u, comHorario) {
     const tel = u.telefone
       ? `<a href="${linkTel(u.telefone)}">${icon("phone")} ${esc(u.telefone)}</a>`
-      : `<span>${icon("phone")} ${confirmar("telefone")}</span>`;
+      : PEND ? `<span>${icon("phone")} ${confirmar("telefone")}</span>` : "";
     const google =
       typeof u.notaGoogle === "number"
         ? `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star", "icon-star")} ${nota(u.notaGoogle)} no Google</a>`
         : "";
     const chips = (u.comodidades || [])
       .map((c) => `<span class="chip">${icon(ICONES_COMODIDADE[c] || "check")} ${esc(c)}</span>`)
-      .join("");
-    const horas = gruposHorario(u.horario)
-      .map((g) => `<div class="hours__row" data-dias="${g.dias.join(",")}"><span>${esc(g.rotulo)}</span><span>${esc(g.horas)}</span></div>`)
       .join("");
 
     return `
@@ -284,20 +296,25 @@
         <div class="unit__body">
           <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
           <div class="unit__status"><span class="status" data-status-de="${esc(u.id)}">…</span><span class="unit__when" data-when></span></div>
-          <p class="unit__addr">${val(u.endereco, "endereço")}<small>${[u.bairro, u.cidade].filter(Boolean).map(esc).join(" · ")}</small></p>
+          ${u.endereco || PEND ? `<p class="unit__addr">${val(u.endereco, "endereço")}<small>${[u.bairro, u.cidade].filter(Boolean).map(esc).join(" · ")}</small></p>` : ""}
           ${chips ? `<div class="chips">${chips}</div>` : ""}
-          <div class="unit__meta">${tel}${google}</div>
-          <div class="hours" aria-label="Horário de funcionamento">${horas}</div>
+          ${tel || google ? `<div class="unit__meta">${tel}${google}</div>` : ""}
+          ${comHorario ? `<div class="hours" aria-label="Horário de funcionamento">${linhasHorario(u.horario)}</div>` : ""}
           <p class="unit__dist" data-dist></p>
-          <div class="unit__actions">
-            ${botao({ href: u.agendar, classe: "btn--primary", texto: "Agendar", ico: "cal", falta: "link" })}
-            <div class="row">
-              ${botao({ href: u.whatsapp && linkWa(u.whatsapp), classe: "btn--wa", texto: "WhatsApp", ico: "wa", falta: "número" })}
-              ${botao({ href: linkRota(u), classe: "btn--line", texto: "Como chegar", ico: "route" })}
-            </div>
-          </div>
+          ${acoesUnidade(u)}
         </div>
       </article>`;
+  }
+
+  // Agendar sempre; WhatsApp só se houver número (ou pendências à mostra).
+  // Com dois botões, ficam lado a lado numa linha só.
+  function acoesUnidade(u) {
+    const agendar = botao({ href: u.agendar, classe: "btn--primary", texto: "Agendar", ico: "cal", falta: "link" });
+    const wa = botao({ href: u.whatsapp && linkWa(u.whatsapp), classe: "btn--wa", texto: "WhatsApp", ico: "wa", falta: "número" });
+    const rota = botao({ href: linkRota(u), classe: "btn--line", texto: "Como chegar", ico: "route" });
+    return wa
+      ? `<div class="unit__actions">${agendar}<div class="row">${wa}${rota}</div></div>`
+      : `<div class="unit__actions"><div class="row">${agendar}${rota}</div></div>`;
   }
 
   function atualizarStatus() {
@@ -309,10 +326,9 @@
         el.className = "status " + (s.aberto ? "is-open" : "is-closed");
       });
       const card = document.getElementById("unidade-" + u.id);
-      if (!card) continue;
-      $("[data-when]", card).textContent = s.detalhe;
-      $$(".hours__row", card).forEach((r) => r.classList.toggle("is-today", r.dataset.dias.split(",").includes(String(dia))));
+      if (card) $("[data-when]", card).textContent = s.detalhe;
     }
+    $$(".hours__row").forEach((r) => r.classList.toggle("is-today", r.dataset.dias.split(",").includes(String(dia))));
 
     // Resumo no topo: "Aberto agora nas 3 unidades · fecha às 20h"
     const geral = $("[data-status-geral]");
@@ -393,35 +409,21 @@
       <p class="map__note">${M && M.fonte ? esc(M.fonte) : "Mapa esquemático, posições reais"}</p>`;
 
     $$(".map__pt", box).forEach((g) => {
-      const ir = () => document.getElementById(g.dataset.alvo).scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
+      const ir = () => document.getElementById(g.dataset.alvo).scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start", inline: "start" });
       g.addEventListener("click", ir);
       g.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), ir()));
     });
   }
 
-  function renderPassos() {
-    const p = C.passos;
-    if (!p) return $("#como-agendar").remove();
-    $("#como-agendar").innerHTML = `
-      <div class="wrap">
-        <div>
-          <h2 class="title" id="passos-titulo">${fmt(p.titulo)}</h2>
-        </div>
-        <ol class="steps">
-          ${p.itens.map((s) => `<li class="step"><h3>${esc(s.titulo)}</h3><p>${esc(s.texto)}</p></li>`).join("")}
-        </ol>
-      </div>`;
-  }
-
-  /* --- Cardápio com abas --- */
+  /* --- Cardápio: a categoria principal; o resto na agenda online --- */
 
   function itemCardapio(i) {
-    const valor = typeof i.preco === "number" ? preco(i.preco) : confirmar("valor");
+    const valor = typeof i.preco === "number" ? preco(i.preco) : PEND ? confirmar("valor") : "";
     const desc = [i.desc && esc(i.desc), i.min && `${i.min} min`].filter(Boolean).join(" · ");
     return `<li class="menu-item">
       <span class="menu-item__name">${esc(i.nome)}${i.unidade ? `<span class="menu-item__tag">${esc(i.unidade)}</span>` : ""}</span>
       <span class="menu-item__dots" aria-hidden="true"></span>
-      <span class="menu-item__price">${i.aPartirDe ? "<small>a partir de</small>" : ""}${valor}</span>
+      <span class="menu-item__price">${valor && i.aPartirDe ? "<small>a partir de</small>" : ""}${valor}</span>
       ${desc ? `<span class="menu-item__desc">${desc}</span>` : ""}
     </li>`;
   }
@@ -429,46 +431,18 @@
   function renderServicos() {
     const s = C.servicos;
     if (!s) return $("#servicos").remove();
-    const cats = s.categorias || [{ nome: "Serviços", itens: s.itens || [] }];
-    const sec = $("#servicos");
-    sec.innerHTML = `
+    const cat = (s.categorias && s.categorias[0]) || { nome: "Serviços", itens: s.itens || [] };
+    $("#servicos").innerHTML = `
       <div class="wrap">
         <div class="menu-head">
-          <div>
-            <h2 class="title" id="servicos-titulo">${fmt(s.titulo)}</h2>
-          </div>
+          <h2 class="title" id="servicos-titulo">${fmt(s.titulo)}</h2>
           <p class="menu-note">${esc(s.aviso)}</p>
         </div>
-        <div class="tabs" role="tablist" aria-label="Categorias de serviço">
-          ${cats.map((c, i) => `<button type="button" class="tab" role="tab" id="tab-${i}" aria-controls="painel-servicos" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(c.nome)}</button>`).join("")}
-        </div>
-        <ul class="menu-list" id="painel-servicos" role="tabpanel" aria-labelledby="tab-0"></ul>
+        <ul class="menu-list" aria-label="${esc(cat.nome)}">${cat.itens.map(itemCardapio).join("")}</ul>
         <div class="menu-cta">
           <button type="button" class="btn btn--paper btn--lg" data-escolher-unidade>${esc(s.botao)} ${icon("arrow")}</button>
         </div>
       </div>`;
-
-    const painel = $("#painel-servicos");
-    const abas = $$(".tab", sec);
-    const mostrar = (idx, foco) => {
-      abas.forEach((a, i) => {
-        a.setAttribute("aria-selected", i === idx);
-        a.tabIndex = i === idx ? 0 : -1;
-      });
-      painel.setAttribute("aria-labelledby", "tab-" + idx);
-      painel.innerHTML = cats[idx].itens.map(itemCardapio).join("");
-      if (foco) abas[idx].focus();
-      const lista = abas[idx].parentElement;
-      if (lista.scrollWidth > lista.clientWidth) lista.scrollTo({ left: abas[idx].offsetLeft - 20, behavior: REDUZIR ? "auto" : "smooth" });
-    };
-    abas.forEach((a, i) => {
-      a.addEventListener("click", () => mostrar(i));
-      a.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowRight") mostrar((i + 1) % abas.length, true);
-        if (e.key === "ArrowLeft") mostrar((i - 1 + abas.length) % abas.length, true);
-      });
-    });
-    mostrar(0);
   }
 
   /* --- Barboterapia --- */
@@ -476,19 +450,38 @@
   function renderDestaque() {
     const d = C.destaque;
     if (!d) return $("#barboterapia").remove();
+    const imagem = "foto" in d ? foto(d.foto, "Barboterapia com toalha quente") : "";
     $("#barboterapia").innerHTML = `
-      <div class="wrap feature">
-        <div class="feature__copy">
+      <div class="wrap feature ${imagem ? "feature--foto" : "feature--solo"}">
+        ${imagem ? `<div class="feature__photo">${imagem}</div>` : ""}
+        <div class="feature__main">
           <h2 class="title" id="barboterapia-titulo">${fmt(d.titulo)}</h2>
           <p class="feature__sub">${esc(d.subtitulo)}</p>
           <p class="lead">${esc(d.texto)}</p>
           ${d.duracao ? `<p class="feature__time"><strong>Até ${d.duracao} min</strong> na cadeira, conforme a necessidade da barba.</p>` : ""}
+        </div>
+        <div class="feature__aside">
           <ul class="checklist">${d.itens.map((i) => `<li>${icon("check")} ${esc(i)}</li>`).join("")}</ul>
           ${d.incluidaEm ? `<div class="included"><p>Incluída em</p><div class="chips">${d.incluidaEm.map((s) => `<span class="chip">${esc(s)}</span>`).join("")}</div></div>` : ""}
           <button type="button" class="btn btn--primary btn--lg" data-escolher-unidade>${icon("cal")} Agendar barba</button>
         </div>
-        ${"foto" in d ? `<div class="feature__photo">${foto(d.foto, "Barboterapia com toalha quente")}</div>` : ""}
       </div>`;
+  }
+
+  // Sem valor e plano confirmados (e sem pendências à mostra): convite para consultar pelo WhatsApp
+  function cartaoPlano(a, href) {
+    const semDados = vazio(a.valor) && vazio(a.plano);
+    const btn = botao({ href, classe: "btn--primary btn--lg btn--block", texto: semDados && !PEND ? "Consultar pelo WhatsApp" : "Assinar pelo WhatsApp", ico: "wa", falta: "número" });
+    if (semDados && !PEND) {
+      return `<p class="plan__card-label">Planos e valores</p>
+        <p class="plan__ask">Consulte planos e valores pelo WhatsApp</p>
+        ${btn}`;
+    }
+    return `<p class="plan__card-label">Valor mensal</p>
+      ${a.valor || PEND ? `<p class="plan__value">${val(a.valor, "valor")}</p>` : ""}
+      ${a.plano || PEND ? `<p class="plan__name">Plano: ${val(a.plano, "plano")}</p>` : ""}
+      ${btn}
+      ${a.whatsappConfirmar && PEND ? `<p class="plan__note">${confirmar(a.whatsappConfirmar)}</p>` : ""}`;
   }
 
   function renderAssinatura() {
@@ -503,41 +496,7 @@
           ${a.servicosPlano ? `<div class="plan__services"><p>${esc(a.servicosNota || "Serviços do plano")}</p>
             <div class="chips">${a.servicosPlano.map((s) => `<span class="chip">${icon("check")} ${esc(s)}</span>`).join("")}</div></div>` : ""}
         </div>
-        <div class="plan__card">
-          <p class="plan__card-label">Valor mensal</p>
-          <p class="plan__value">${val(a.valor, "valor")}</p>
-          <p class="plan__name">Plano: ${val(a.plano, "plano")}</p>
-          ${botao({ href, classe: "btn--primary btn--lg btn--block", texto: "Assinar pelo WhatsApp", ico: "wa", falta: "número" })}
-          ${a.whatsappConfirmar ? `<p class="plan__note">${confirmar(a.whatsappConfirmar)}</p>` : ""}
-        </div>
-      </div>`;
-  }
-
-  function renderComodidades() {
-    const c = C.comodidades;
-    if (!c) return $("#comodidades").remove();
-    const pg = c.pagamento;
-    $("#comodidades").innerHTML = `
-      <div class="wrap">
-        <div>
-          <h2 class="title" id="comodidades-titulo">${fmt(c.titulo)}</h2>
-        </div>
-        <ul class="amenities">
-          ${c.itens
-            .map(
-              (i) => `<li class="amenity">
-                ${icon(i.icone)}
-                <p class="amenity__name">${esc(i.nome)}</p>
-                <p class="amenity__text">${val(i.texto, i.confirmar)}</p>
-              </li>`
-            )
-            .join("")}
-        </ul>
-        ${pg ? `<div class="payments">
-          <h3>${esc(pg.titulo)}</h3>
-          <div class="chips">${pg.itens.map((p) => `<span class="chip">${esc(p)}</span>`).join("")}</div>
-          ${pg.nota ? `<p>${esc(pg.nota)}</p>` : ""}
-        </div>` : ""}
+        <div class="plan__card">${cartaoPlano(a, href)}</div>
       </div>`;
   }
 
@@ -545,6 +504,8 @@
     const e = C.escola;
     if (!e) return $("#escola").remove();
     const wa = e.whatsapp && linkWa(e.whatsapp, e.mensagem);
+    // Ficha do curso: só as linhas confirmadas (todas, com pendências à mostra)
+    const ficha = (e.detalhes || []).filter((d) => PEND || !vazio(d.valor));
     $("#escola").innerHTML = `
       <div class="wrap">
         <div class="school">
@@ -557,7 +518,7 @@
             ${e.fatos ? `<ul class="school__facts">${e.fatos.map((t) => `<li>${icon("check")} ${esc(t)}</li>`).join("")}</ul>` : ""}
           </div>
           <div class="school__side">
-            ${e.detalhes ? `<dl class="school__sheet">${e.detalhes.map((d) => `<div><dt>${esc(d.rotulo)}</dt><dd>${val(d.valor)}</dd></div>`).join("")}</dl>` : ""}
+            ${ficha.length ? `<dl class="school__sheet">${ficha.map((d) => `<div><dt>${esc(d.rotulo)}</dt><dd>${val(d.valor)}</dd></div>`).join("")}</dl>` : ""}
             <div class="school__actions">
               ${botao({ href: e.cursos, classe: "btn--paper btn--lg", texto: "Cursos e inscrições", ico: "link", falta: "link" })}
               ${botao({ href: wa, classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
@@ -569,55 +530,39 @@
       </div>`;
   }
 
-  function renderFaq() {
-    const f = C.faq;
-    if (!f || !f.itens.length) return $("#faq").remove();
-    $("#faq").innerHTML = `
-      <div class="wrap faq-grid">
-        <div>
-          <h2 class="title" id="faq-titulo">${fmt(f.titulo)}</h2>
-        </div>
-        <div class="faq-list">
-          ${f.itens.map((q) => `<details class="faq-item"><summary>${esc(q.p)} ${icon("plus")}</summary><p>${esc(q.r)}</p></details>`).join("")}
-        </div>
-      </div>`;
-  }
-
-  function renderInstagram() {
-    const ig = C.redes && C.redes.instagram;
-    const t = C.instagram;
-    if (!ig || !t) return $("#instagram").remove();
-    $("#instagram").innerHTML = `
-      <div class="wrap ig">
-        <h2 class="ig__handle" id="ig-titulo">${esc(ig.usuario)}</h2>
-        <p class="ig__text">${esc(t.texto)}</p>
-        <a class="btn btn--ink btn--lg" href="${esc(ig.url)}" ${ext}>${icon("ig")} Seguir no Instagram</a>
-      </div>`;
-  }
-
   function renderRodape() {
     const [n1, n2] = partesNome();
     const ig = C.redes && C.redes.instagram;
-    const tc = C.trabalheConosco;
+    const tc = C.trabalheConosco && (PEND || !C.trabalheConosco.confirmar) ? C.trabalheConosco : null;
+    const rp = C.rodape || {};
+    const extras = (rp.extras || [])
+      .filter((x) => typeof x === "string" || PEND)
+      .map((x) => (typeof x === "string" ? esc(x) : `${esc(x.texto)} ${confirmar(x.confirmar)}`));
+    const pg = rp.pagamento;
+    const pagamento = pg && pg.itens && pg.itens.length
+      ? `Pagamento: ${esc(pg.itens.slice(0, -1).join(", "))}${pg.itens.length > 1 ? " e " : ""}${esc(pg.itens[pg.itens.length - 1])}${pg.nota ? ` (${esc(pg.nota)})` : ""}`
+      : "";
+    const linha = [...extras, pagamento].filter(Boolean);
     const rod = $("#rodape");
     rod.innerHTML = `
       <div class="wrap">
-        <p class="footer__phrase">${esc(semMarcas(C.marca.frase))}.</p>
         <div class="footer__units">
           ${C.unidades
             .map(
               (u) => `<div class="footer__unit">
                 <h3>${esc(u.nome)}</h3>
-                <p>${val(u.endereco, "endereço")}</p>
-                <p>${u.telefone ? `<a href="${linkTel(u.telefone)}">${esc(u.telefone)}</a>` : confirmar("telefone")}</p>
-                ${typeof u.notaGoogle === "number" ? `<p><a href="${esc(linkGoogle(u))}" ${ext}>${nota(u.notaGoogle)} no Google</a></p>` : ""}
+                ${u.endereco || PEND ? `<p>${val(u.endereco, "endereço")}</p>` : ""}
+                <p class="footer__unit-links">${u.telefone ? `<a href="${linkTel(u.telefone)}">${esc(u.telefone)}</a>` : PEND ? confirmar("telefone") : ""}${
+                  typeof u.notaGoogle === "number" ? `<a href="${esc(linkGoogle(u))}" ${ext}>${nota(u.notaGoogle)} no Google</a>` : ""
+                }</p>
               </div>`
             )
             .join("")}
         </div>
+        ${linha.length ? `<p class="footer__extras">${linha.map((t) => `<span>${t}</span>`).join("")}</p>` : ""}
         <nav class="footer__links" aria-label="Links">
           ${ig ? `<a href="${esc(ig.url)}" ${ext}>${icon("ig")} ${esc(ig.usuario)}</a>` : ""}
-          ${tc ? `<a href="${esc(tc.url)}" ${ext}>Trabalhe conosco ${tc.confirmar ? confirmar(tc.confirmar) : ""}</a>` : ""}
+          ${tc ? `<a href="${esc(tc.url)}" ${ext}>Trabalhe conosco ${tc.confirmar && PEND ? confirmar(tc.confirmar) : ""}</a>` : ""}
           <a href="#topo">Voltar ao topo</a>
         </nav>
         <div class="footer__base">
@@ -633,6 +578,7 @@
     const dlg = $("#dialog-unidade");
     $("#dialog-lista").innerHTML = C.unidades
       .map((u) => {
+        if (!u.agendar && !PEND) return "";
         const corpo = `<span class="pick__main"><strong>${esc(u.nome)}</strong><small>${val(u.endereco, "endereço")}</small></span>
           <span class="pick__side"><span class="status" data-status-de="${esc(u.id)}">…</span>${
             typeof u.notaGoogle === "number" ? `<span class="pick__rate">${icon("star")} ${nota(u.notaGoogle)}</span>` : ""
@@ -704,7 +650,7 @@
           renderMapa(melhor.km < 15 ? eu : null);
           rotulo.textContent = textoOriginal;
           btn.disabled = false;
-          melhor.card.scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
+          melhor.card.scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start", inline: "start" });
         },
         (err) => {
           rotulo.textContent = textoOriginal;
@@ -719,21 +665,7 @@
     });
   }
 
-  /* ---------- Navegação: seção atual + "A seguir" ---------- */
-
-  // Fim de cada seção: um convite para a próxima, com o título dela
-  function renderProximas() {
-    const secoes = $$("#conteudo > section[id]").filter((sec) => sec.id !== "topo" && sec.innerHTML.trim());
-    secoes.forEach((sec, i) => {
-      const prox = secoes[i + 1];
-      const titulo = prox && $("h2", prox);
-      if (!titulo) return;
-      const link = document.createElement("div");
-      link.className = "wrap";
-      link.innerHTML = `<a class="next" href="#${prox.id}"><span class="next__label">A seguir</span><span class="next__title">${esc(titulo.textContent.trim())}</span>${icon("arrow")}</a>`;
-      sec.appendChild(link);
-    });
-  }
+  /* ---------- Navegação: seção atual em destaque ---------- */
 
   // Cabeçalho: altura para a rolagem, sombra ao rolar e link da seção atual em destaque
   function iniciarNavegacao() {
@@ -768,25 +700,35 @@
     $$("#conteudo > section[id]").forEach((sec) => io.observe(sec));
   }
 
+  /* ---------- Fonte ---------- */
+
+  // Sem a Archivo (rede lenta ou bloqueada), a fonte do sistema é bem mais larga:
+  // marca a página para o CSS reduzir os títulos grandes e nada passar da tela.
+  function vigiarFonte() {
+    if (!document.fonts || !document.fonts.load) return;
+    const sem = () => document.documentElement.classList.add("sem-archivo");
+    const tempo = setTimeout(sem, 3000);
+    document.fonts.load('800 1em "Archivo"').then((f) => {
+      clearTimeout(tempo);
+      if (f.length) document.documentElement.classList.remove("sem-archivo");
+      else sem();
+    }, sem);
+  }
+
   /* ---------- Início ---------- */
 
   aplicarTema();
+  vigiarFonte();
   renderPrevia();
   renderCabecalho();
   renderTopo();
-  renderSobre();
   renderUnidades();
-  renderPassos();
   renderServicos();
   renderDestaque();
   renderAssinatura();
-  renderComodidades();
   renderEscola();
-  renderFaq();
-  renderInstagram();
   renderRodape();
   iniciarDialogo();
   iniciarPerto();
-  renderProximas();
   iniciarNavegacao();
 })();

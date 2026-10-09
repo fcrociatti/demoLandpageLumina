@@ -19,19 +19,26 @@ assets/         fotos
 
 1. Copie a pasta inteira.
 2. Edite só o `config.js`: marca, cores, unidades, horários, serviços, links.
-3. Qualquer valor `null` aparece na página como **[CONFIRMAR]**.
-   Foto `null` aparece como **[FOTO DO AMBIENTE]**.
+3. Valor `null` é uma **pendência**. Com `mostrarPendencias: false` (padrão) ela
+   some da página junto com a linha, o botão ou a foto dela. Com `true`, aparece
+   como **[CONFIRMAR]** / **[FOTO DO AMBIENTE]** para revisão. Para revisar sem
+   mexer no arquivo, acrescente `?pendencias=1` ao endereço.
 4. Em títulos e frases, `*palavra*` vira a caixa vermelha de destaque. Use pouco
    (hoje só no topo e na assinatura): repetida em todo título ela perde a força.
-5. Para tirar uma seção inteira (ex.: `escola`, `assinatura`, `faq`), apague o bloco
-   dela no `config.js`. Para mostrar o passo a passo de agendamento, acrescente um
-   bloco `passos` (`titulo` e `itens` com `titulo`/`texto`).
+5. Seções: topo, unidades, serviços, barboterapia, assinatura, escola e rodapé.
+   Para tirar uma (ex.: `escola`, `assinatura`), apague o bloco dela no `config.js`.
+   Se todas as unidades têm o mesmo horário, a tabela aparece uma vez só, acima
+   dos cartões. Do cardápio, só a primeira categoria aparece na página.
 6. O mapa das unidades é desenhado a partir de `lat`/`lng`: não precisa de chave
    de API nem biblioteca. O fundo (`assets/mapa-butanta.svg`) usa os limites reais
    dos distritos (Prefeitura de SP). Para outra região, troque a imagem e os
    `limites` no bloco `mapa` do `config.js`, ou apague o bloco para usar um
    quadro esquemático.
-7. Para um site oficial (não prévia), troque `previa.ativo` para `false`
+7. Tema: `tema: "claro"` ou `"escuro"`, com as cores em `cores.claro` e
+   `cores.escuro` (fundo e texto) e `cores.destaque`. Para comparar sem publicar,
+   use `?tema=escuro` ou `?tema=claro` no endereço. A versão clara de antes das
+   mudanças de enxugar a página está guardada na branch `versao-clara`.
+8. Para um site oficial (não prévia), troque `previa.ativo` para `false`
    e remova as duas linhas `robots`/`googlebot` do `index.html`.
 
 ### Fotos

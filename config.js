@@ -5,8 +5,10 @@
  * outra barbearia. O resto (index.html, css, js) lê daqui.
  *
  * Convenções:
- * - Qualquer valor null aparece na página como [CONFIRMAR] em destaque.
- * - Foto null aparece como o espaço [FOTO DO AMBIENTE].
+ * - Valor null é uma pendência. Com mostrarPendencias: false ele some da
+ *   página (com a linha, o botão ou a foto dele). Com true, aparece como
+ *   [CONFIRMAR] / [FOTO DO AMBIENTE] para revisão. ?pendencias=1 no
+ *   endereço mostra as pendências sem mudar este arquivo.
  * - Em títulos, *palavra* vira a caixa vermelha (use pouco: topo e assinatura)
  *   e _palavra_ vira itálico.
  * - WhatsApp: só dígitos, com 55 + DDD (ex.: "5511999999999").
@@ -40,12 +42,19 @@ window.SITE_CONFIG = {
     texto: "Prévia de demonstração criada por Crociatti Digital. Não é o site oficial.",
   },
 
+  // false: esconde tudo que ainda falta confirmar. true: mostra [CONFIRMAR].
+  mostrarPendencias: false,
+
   fuso: "America/Sao_Paulo",
 
+  // "claro" ou "escuro". Para comparar sem publicar: ?tema=escuro ou ?tema=claro no endereço.
+  // Para voltar ao visual claro de sempre, basta "claro".
+  tema: "claro",
+
   cores: {
-    fundo: "#0B0B0B",
-    texto: "#FFFFFF",
     destaque: "#E10600",
+    claro: { fundo: "#F3F3F1", texto: "#0B0B0B" },
+    escuro: { fundo: "#0B0B0B", texto: "#FFFFFF" },
   },
 
   marca: {
@@ -55,21 +64,9 @@ window.SITE_CONFIG = {
     chamada: "Barbearia · Butantã · desde 2016",
     frase: "Conforto, *autoestima* e elegância",
     selo: "10 anos · 3 unidades no Butantã",
-    lead: "Três barbearias no Butantã para cortar, fazer a barba com toalha quente e sair melhor do que entrou.",
+    lead: "Três barbearias no Butantã para cortar, fazer a barba com toalha quente e sair melhor do que entrou. E sempre com uma cerveja gelada ou um café expresso esperando por você.",
     // Foto grande do topo. posicao = enquadramento (CSS object-position).
     foto: { src: FOTOS + "barbearialumina-jaud/68f020f29a205.png", legenda: "Unidade Jd. Esther", posicao: "center 60%" },
-  },
-
-  sobre: {
-    titulo: "Corte de qualidade e barboterapia",
-    texto: [
-      "Desde 2016 no Butantã, a Lumina Class une corte de qualidade e barboterapia: barba com toalha quente e produtos que cuidam da pele.",
-      "Do corte à máquina ao customizado, da coloração à sobrancelha. E sempre com uma cerveja gelada ou um café expresso esperando por você.",
-    ],
-    fotos: [
-      { src: FOTOS + "barbearialumina-zhfp/68f0230fc510b.png", legenda: "Acabamento na navalha", posicao: "center" },
-      { src: FOTOS + "luminaclassbarb-41rp/68fff01807aa6.png", legenda: "As cadeiras da Bonfiglioli", posicao: "15% center" },
-    ],
   },
 
   textoUnidades: {
@@ -145,7 +142,8 @@ window.SITE_CONFIG = {
     },
   ],
 
-  // Cardápio. A primeira categoria aparece aberta.
+  // Cardápio. Só a primeira categoria aparece na página; a lista completa
+  // fica na agenda online ("Ver todos e agendar").
   // aPartirDe: mostra "a partir de"; unidade: serviço de uma unidade só.
   servicos: {
     titulo: "O cardápio",
@@ -229,7 +227,7 @@ window.SITE_CONFIG = {
     itens: ["Toalha quente", "Hidratação da pele", "Relaxamento", "Barba bem feita"],
     duracao: 40, // minutos
     incluidaEm: ["Barba e cabelo", "Barba e pezinho", "Corte à máquina e barba"],
-    foto: null, // sugestão: barba com toalha quente, sem rosto
+    foto: null, // pendência: barba com toalha quente, sem rosto
   },
 
   assinatura: {
@@ -244,20 +242,13 @@ window.SITE_CONFIG = {
     mensagem: "Olá! Quero saber mais sobre a assinatura mensal.",
   },
 
-  comodidades: {
-    titulo: "Também na Lumina",
-    itens: [
-      { icone: "beer", nome: "Cerveja e café", texto: "Cerveja gelada ou café expresso" },
-      { icone: "wifi", nome: "Wi-Fi", texto: "Nas 3 unidades" },
-      { icone: "car", nome: "Estacionamento", texto: "Nas 3 unidades" },
-      { icone: "kid", nome: "Atende crianças", texto: "Corte infantil nas 3 unidades" },
-      { icone: "access", nome: "Acessibilidade", texto: "Unidade Corifeu" },
-      { icone: "tattoo", nome: "Tatuagem", texto: null, confirmar: "unidade" },
-    ],
+  // Linha do rodapé: o que mais tem na Lumina e como pagar.
+  // Item { texto, confirmar } é pendência: só aparece com mostrarPendencias.
+  rodape: {
+    extras: ["Cerveja gelada ou café expresso", { texto: "Tatuagem", confirmar: "unidade" }],
     pagamento: {
-      titulo: "Formas de pagamento",
-      itens: ["Dinheiro", "Cartão de crédito", "Cartão de débito", "Transferência"],
-      nota: "Na Bonfiglioli também PIX.",
+      itens: ["dinheiro", "cartão de crédito", "cartão de débito", "transferência"],
+      nota: "PIX na Bonfiglioli",
     },
   },
 
@@ -266,7 +257,7 @@ window.SITE_CONFIG = {
     subtitulo: "Escola de barbeiros",
     texto:
       "A formação de barbeiros da rede Lumina. Para quem quer fazer da barbearia uma profissão, aprendendo dentro de uma rede com 10 anos de cadeira.",
-    // Ficha do curso. valor null aparece como [CONFIRMAR].
+    // Ficha do curso. Linha com valor null só aparece com mostrarPendencias.
     detalhes: [
       { rotulo: "Cursos", valor: null },
       { rotulo: "Formato e carga horária", valor: null },
@@ -274,12 +265,8 @@ window.SITE_CONFIG = {
       { rotulo: "Investimento", valor: null },
       { rotulo: "Certificado", valor: null },
     ],
-    // Fatos sobre a escola (só o que é confirmado).
-    fatos: [
-      "Escola da rede Lumina Class, há 10 anos no Butantã",
-      "Tire dúvidas direto com a escola pelo WhatsApp",
-      "Turmas e novidades no Instagram @lucchesiacademy",
-    ],
+    // Fatos curtos sobre a escola (opcional, só o que é confirmado).
+    // fatos: ["..."],
     detalhe: "Turmas, datas e valores: fale direto com a escola.",
     cursos: "http://felipelucchesi.com.br/descomplica/", // página de cursos e inscrições (link da bio)
     // foto: { src: "assets/escola.jpg" }, // opcional: aula na bancada, sem rosto de cliente
@@ -289,45 +276,11 @@ window.SITE_CONFIG = {
     mensagem: "Olá! Quero saber sobre o curso de barbeiro.",
   },
 
-  faq: {
-    titulo: "Perguntas frequentes",
-    itens: [
-      {
-        p: "Como faço para agendar?",
-        r: "Escolha a unidade na lista acima e toque em Agendar. Você cai na agenda online da unidade no AppBarber e escolhe serviço, profissional e horário.",
-      },
-      {
-        p: "Qual o horário de funcionamento?",
-        r: "Nas 3 unidades: segunda a sexta das 9h às 20h, sábado das 9h às 18h e domingo das 10h às 13h.",
-      },
-      {
-        p: "Vocês atendem crianças?",
-        r: "Sim. Corte infantil nas 3 unidades.",
-      },
-      {
-        p: "Quais as formas de pagamento?",
-        r: "Dinheiro, cartão de crédito, cartão de débito e transferência. Na Bonfiglioli também PIX.",
-      },
-      {
-        p: "Tem estacionamento?",
-        r: "Sim, as 3 unidades informam estacionamento no cadastro do AppBarber.",
-      },
-      {
-        p: "O que é a barboterapia?",
-        r: "É a barba feita com toalha quente e produtos de hidratação, pensada para relaxar. Pode durar até 40 minutos, conforme a necessidade.",
-      },
-    ],
-  },
-
-  instagram: {
-    titulo: "Veja os cortes",
-    texto: "Acompanhe os trabalhos, conheça os barbeiros nos destaques e fale com a gente pelo direct.",
-  },
-
   redes: {
     instagram: { usuario: "@luminaclassbarbearia", url: "https://instagram.com/luminaclassbarbearia" },
   },
 
+  // Com "confirmar", o link só aparece com mostrarPendencias. Apague "confirmar" quando o destino for o certo.
   trabalheConosco: {
     url: "https://instagram.com/luminaclassbarbearia",
     confirmar: "destino",
