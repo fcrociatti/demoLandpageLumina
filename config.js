@@ -77,6 +77,23 @@ window.SITE_CONFIG = {
     lead: "Três endereços no Butantã, mesmo horário. Agende online pelo AppBarber, direto na unidade.",
   },
 
+  // Fundo do mapa das unidades: limites reais dos distritos (Prefeitura de SP, GeoSampa).
+  // Os pinos são posicionados por lat/lng dentro destes limites.
+  // Sem este bloco, o mapa vira um quadro esquemático simples.
+  mapa: {
+    imagem: "assets/mapa-butanta.svg",
+    limites: { oeste: -46.792, sul: -23.612, leste: -46.692, norte: -23.545 },
+    fonte: "Distritos: Prefeitura de São Paulo",
+    rotulos: [
+      { texto: "Butantã", lat: -23.5655, lng: -46.7235 },
+      { texto: "Rio Pequeno", lat: -23.5625, lng: -46.7620 },
+      { texto: "Vila Sônia", lat: -23.5990, lng: -46.7390 },
+      { texto: "Raposo Tavares", lat: -23.5965, lng: -46.7735 },
+      { texto: "Morumbi", lat: -23.5975, lng: -46.7110 },
+      { texto: "Jaguaré", lat: -23.5490, lng: -46.7470 },
+    ],
+  },
+
   unidades: [
     {
       id: "bonfiglioli",
@@ -249,7 +266,23 @@ window.SITE_CONFIG = {
     subtitulo: "Escola de barbeiros",
     texto:
       "A formação de barbeiros da rede Lumina. Para quem quer fazer da barbearia uma profissão, aprendendo dentro de uma rede com 10 anos de cadeira.",
+    // Ficha do curso. valor null aparece como [CONFIRMAR].
+    detalhes: [
+      { rotulo: "Cursos", valor: null },
+      { rotulo: "Formato e carga horária", valor: null },
+      { rotulo: "Próximas turmas", valor: null },
+      { rotulo: "Investimento", valor: null },
+      { rotulo: "Certificado", valor: null },
+    ],
+    // Fatos sobre a escola (só o que é confirmado).
+    fatos: [
+      "Escola da rede Lumina Class, há 10 anos no Butantã",
+      "Tire dúvidas direto com a escola pelo WhatsApp",
+      "Turmas e novidades no Instagram @lucchesiacademy",
+    ],
     detalhe: "Turmas, datas e valores: fale direto com a escola.",
+    cursos: "http://felipelucchesi.com.br/descomplica/", // página de cursos e inscrições (link da bio)
+    // foto: { src: "assets/escola.jpg" }, // opcional: aula na bancada, sem rosto de cliente
     instagram: "https://instagram.com/lucchesiacademy",
     whatsapp: "5511981166533",
     whatsappTexto: "(11) 98116-6533",
