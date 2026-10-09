@@ -562,7 +562,7 @@
           <div class="school__side">
             ${e.detalhes ? `<dl class="school__sheet">${e.detalhes.map((d) => `<div><dt>${esc(d.rotulo)}</dt><dd>${val(d.valor)}</dd></div>`).join("")}</dl>` : ""}
             <div class="school__actions">
-              ${botao({ href: e.linktree, classe: "btn--paper btn--lg", texto: "Cursos e inscrições", ico: "link", falta: "Linktree" })}
+              ${botao({ href: e.cursos, classe: "btn--paper btn--lg", texto: "Cursos e inscrições", ico: "link", falta: "link" })}
               ${botao({ href: wa, classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
               ${botao({ href: e.instagram, classe: "btn--ghost-light btn--lg", texto: "@lucchesiacademy", ico: "ig", falta: "link" })}
             </div>

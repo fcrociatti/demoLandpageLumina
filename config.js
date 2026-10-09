@@ -281,7 +281,7 @@ window.SITE_CONFIG = {
       "Turmas e novidades no Instagram @lucchesiacademy",
     ],
     detalhe: "Turmas, datas e valores: fale direto com a escola.",
-    linktree: null, // ex.: "https://linktr.ee/lucchesiacademy" (confirmar o endereço)
+    cursos: "http://felipelucchesi.com.br/descomplica/", // página de cursos e inscrições (link da bio)
     // foto: { src: "assets/escola.jpg" }, // opcional: aula na bancada, sem rosto de cliente
     instagram: "https://instagram.com/lucchesiacademy",
     whatsapp: "5511981166533",
