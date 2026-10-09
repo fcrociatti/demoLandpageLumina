@@ -22,7 +22,11 @@ assets/         fotos
 3. Qualquer valor `null` aparece na página como **[CONFIRMAR]**.
    Foto `null` aparece como **[FOTO DO AMBIENTE]**.
 4. Em títulos e frases, `*palavra*` vira a caixa vermelha de destaque.
-5. Para um site oficial (não prévia), troque `previa.ativo` para `false`
+5. Para tirar uma seção inteira (ex.: `escola`, `assinatura`, `faq`), apague o bloco
+   dela no `config.js`. A numeração das seções se ajusta sozinha.
+6. O mapa das unidades é desenhado a partir de `lat`/`lng`: não precisa de chave
+   de API nem biblioteca.
+7. Para um site oficial (não prévia), troque `previa.ativo` para `false`
    e remova as duas linhas `robots`/`googlebot` do `index.html`.
 
 ### Fotos
