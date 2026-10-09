@@ -168,9 +168,9 @@
   // Links do menu: só seções que existem no config
   function navLinks() {
     return [
-      ["#unidades", "Unidades", true],
       ["#servicos", "Serviços", C.servicos],
       ["#barboterapia", "Barboterapia", C.destaque],
+      ["#unidades", "Unidades", true],
       ["#assinatura", "Assinatura", C.assinatura],
       ["#escola", "Escola", C.escola],
     ]
@@ -186,22 +186,31 @@
       .filter((u) => typeof u.notaGoogle === "number")
       .map((u) => `<a href="${esc(linkGoogle(u))}" ${ext}>${icon("star")} <strong>${nota(u.notaGoogle)}</strong> ${esc(u.nome)}</a>`)
       .join("");
+    // Preços dos primeiros serviços: mostrar o valor cedo ajuda a decidir
+    const itens = (C.servicos && C.servicos.categorias && C.servicos.categorias[0].itens) || [];
+    const precos = itens
+      .filter((i) => typeof i.preco === "number")
+      .slice(0, 3)
+      .map((i) => `<span>${esc(i.nome)} <strong>${preco(i.preco)}</strong></span>`)
+      .join("");
     const f = m.foto;
     $("#topo").innerHTML = `
       <div class="wrap">
         <header class="masthead">
           <a class="wordmark" href="#topo" aria-label="${esc(m.nomeCompleto)}">${esc(n1)} <span>${esc(n2)}</span></a>
           <nav class="nav" aria-label="Seções">${navLinks()}</nav>
-          <a class="btn btn--ink" href="#unidades">${icon("cal")} Agendar</a>
+          <a class="btn btn--ink" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar</a>
         </header>
         <div class="hero__grid">
           <div class="hero__copy">
+            <p class="hero__status" data-status-geral aria-live="polite"></p>
             <h1 class="hero__title" id="hero-titulo">${fmt(m.frase)}.</h1>
             ${m.lead ? `<p class="hero__lead">${esc(m.lead)}</p>` : ""}
             <div class="hero__ctas">
-              <a class="btn btn--primary btn--lg" href="#unidades">${icon("cal")} Agendar agora</a>
-              <a class="link" href="#servicos">Ver o cardápio ${icon("arrow")}</a>
+              <a class="btn btn--primary btn--lg" href="#unidades" data-escolher-unidade>${icon("cal")} Agendar horário</a>
+              <a class="link" href="#servicos">Ver todos os preços ${icon("arrow")}</a>
             </div>
+            ${precos ? `<p class="hero__prices" aria-label="Alguns preços">${precos}</p>` : ""}
             ${notas ? `<div class="ratings" aria-label="Notas no Google">${notas}<span class="ratings-src">no Google</span></div>` : ""}
           </div>
           <figure class="hero__photo">
@@ -277,7 +286,7 @@
         ${u.foto !== undefined ? foto(u.foto, `Unidade ${u.nome}`, "unit__photo") : ""}
         <div class="unit__body">
           <h3 class="unit__name" id="nome-${esc(u.id)}">${esc(u.nome)}</h3>
-          <div class="unit__status"><span class="status" data-status>…</span><span class="unit__when" data-when></span></div>
+          <div class="unit__status"><span class="status" data-status-de="${esc(u.id)}">…</span><span class="unit__when" data-when></span></div>
           <p class="unit__addr">${val(u.endereco, "endereço")}<small>${[u.bairro, u.cidade].filter(Boolean).map(esc).join(" · ")}</small></p>
           ${chips ? `<div class="chips">${chips}</div>` : ""}
           <div class="unit__meta">${tel}${google}</div>
@@ -296,66 +305,95 @@
 
   function atualizarStatus() {
     const { dia } = agora();
-    for (const u of C.unidades) {
+    const todos = C.unidades.map((u) => ({ u, s: status(u.horario) }));
+    for (const { u, s } of todos) {
+      $$(`[data-status-de="${u.id}"]`).forEach((el) => {
+        el.textContent = s.aberto ? "Aberto agora" : "Fechado";
+        el.className = "status " + (s.aberto ? "is-open" : "is-closed");
+      });
       const card = document.getElementById("unidade-" + u.id);
       if (!card) continue;
-      const s = status(u.horario);
-      const el = $("[data-status]", card);
-      el.textContent = s.aberto ? "Aberto agora" : "Fechado";
-      el.className = "status " + (s.aberto ? "is-open" : "is-closed");
       $("[data-when]", card).textContent = s.detalhe;
       $$(".hours__row", card).forEach((r) => r.classList.toggle("is-today", r.dataset.dias.split(",").includes(String(dia))));
     }
+
+    // Resumo no topo: "Aberto agora nas 3 unidades · fecha às 20h"
+    const geral = $("[data-status-geral]");
+    if (!geral) return;
+    const abertas = todos.filter((t) => t.s.aberto);
+    const n = todos.length;
+    const igual = (lista) => lista.every((t) => t.s.detalhe === lista[0].s.detalhe);
+    let txt;
+    if (abertas.length === n) txt = `Aberto agora ${n > 1 ? `nas ${n} unidades` : ""}${igual(todos) ? ` · ${todos[0].s.detalhe.toLowerCase()}` : ""}`;
+    else if (abertas.length) txt = `${abertas.length} de ${n} unidades abertas agora`;
+    else txt = `Fechado agora${igual(todos) && todos[0].s.detalhe ? ` · ${todos[0].s.detalhe.toLowerCase()}` : ""}`;
+    geral.textContent = txt.replace(/\s+/g, " ");
+    geral.classList.toggle("is-open", abertas.length > 0);
   }
 
-  // Mapa esquemático: posições reais (lat/lng) projetadas num quadro, sem biblioteca de mapas.
+  // Mapa das unidades sem biblioteca: lat/lng projetados num quadro.
+  // Com C.mapa, o fundo é o desenho real dos distritos; sem ele, um quadro esquemático.
   function renderMapa(eu) {
     const box = $("#mapa");
     if (!box) return;
-    const W = 600, H = 320, PX = 130, PY = 80;
+    const M = C.mapa && C.mapa.limites ? C.mapa : null;
     const pts = C.unidades.map((u) => ({ u, lat: u.lat, lng: u.lng }));
-    const todos = eu ? [...pts, eu] : pts;
-    const k = Math.cos((pts[0].lat * Math.PI) / 180);
-    const xs = todos.map((p) => p.lng * k), ys = todos.map((p) => -p.lat);
-    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-    const escala = Math.min((W - 2 * PX) / (maxX - minX || 1), (H - 2 * PY) / (maxY - minY || 1));
-    const offX = (W - (maxX - minX) * escala) / 2, offY = (H - (maxY - minY) * escala) / 2;
-    const proj = (p) => [offX + (p.lng * k - minX) * escala, offY + (-p.lat - minY) * escala];
+    let W = 600, H = 320, proj, dentro = () => true, fundo = "", rotulos = "";
 
-    let grade = "";
-    for (let x = 0; x <= W; x += 40) grade += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`;
-    for (let y = 0; y <= H; y += 40) grade += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
-
-    const xy = pts.map(proj);
+    if (M) {
+      const { oeste, sul, leste, norte } = M.limites;
+      const k = Math.cos((((sul + norte) / 2) * Math.PI) / 180);
+      H = Math.round((W * (norte - sul)) / ((leste - oeste) * k));
+      proj = (p) => [((p.lng - oeste) / (leste - oeste)) * W, ((norte - p.lat) / (norte - sul)) * H];
+      dentro = (p) => p.lng > oeste && p.lng < leste && p.lat > sul && p.lat < norte;
+      fundo = `<image href="${esc(M.imagem)}" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
+      rotulos = (M.rotulos || [])
+        .map((r) => {
+          const [x, y] = proj(r);
+          return `<text class="map__area" x="${x}" y="${y}" text-anchor="middle">${esc(r.texto)}</text>`;
+        })
+        .join("");
+    } else {
+      const PX = 130, PY = 80;
+      const todos = eu ? [...pts, eu] : pts;
+      const k = Math.cos((pts[0].lat * Math.PI) / 180);
+      const xs = todos.map((p) => p.lng * k), ys = todos.map((p) => -p.lat);
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+      const escala = Math.min((W - 2 * PX) / (maxX - minX || 1), (H - 2 * PY) / (maxY - minY || 1));
+      const offX = (W - (maxX - minX) * escala) / 2, offY = (H - (maxY - minY) * escala) / 2;
+      proj = (p) => [offX + (p.lng * k - minX) * escala, offY + (-p.lat - minY) * escala];
+      for (let x = 0; x <= W; x += 40) fundo += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`;
+      for (let y = 0; y <= H; y += 40) fundo += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
+      fundo = `<g class="map__grid">${fundo}</g>`;
+    }
 
     const pontos = pts
-      .map(({ u }, i) => {
-        const [x, y] = xy[i];
-        const dir = x > W * 0.62;
-        const tx = dir ? x - 26 : x + 26;
+      .map(({ u }) => {
+        const [x, y] = proj(u);
+        const dir = x > W * 0.8;
+        const tx = dir ? x - 20 : x + 20;
         const anchor = dir ? "end" : "start";
         return `<g class="map__pt" tabindex="0" role="link" aria-label="Ver unidade ${esc(u.nome)}" data-alvo="unidade-${esc(u.id)}">
-          <circle cx="${x}" cy="${y}" r="40" fill="transparent"/>
+          <circle cx="${x}" cy="${y}" r="36" fill="transparent"/>
           <circle class="dot" cx="${x}" cy="${y}" r="10"/>
-          <text x="${tx}" y="${y - 3}" text-anchor="${anchor}">${esc(u.nome)}</text>
-          ${typeof u.notaGoogle === "number" ? `<text class="sub" x="${tx}" y="${y + 20}" text-anchor="${anchor}">${nota(u.notaGoogle)} no Google</text>` : ""}
+          <text class="map__name" x="${tx}" y="${y + 2}" text-anchor="${anchor}">${esc(u.nome)}</text>
+          ${typeof u.notaGoogle === "number" ? `<text class="sub" x="${tx}" y="${y + 22}" text-anchor="${anchor}">${nota(u.notaGoogle)} no Google</text>` : ""}
         </g>`;
       })
       .join("");
 
     let me = "";
-    if (eu) {
+    if (eu && dentro(eu)) {
       const [x, y] = proj(eu);
       me = `<g class="map__me"><circle class="dot" cx="${x}" cy="${y}" r="8"/>
-        <text x="${x}" y="${y + 34}" text-anchor="middle">Você</text></g>`;
+        <text x="${x}" y="${y + 30}" text-anchor="middle">Você</text></g>`;
     }
 
     box.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa esquemático das unidades">
-        <g class="map__grid">${grade}</g>
-        ${pontos}${me}
+      <svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Mapa das unidades no Butantã">
+        ${fundo}${rotulos}${pontos}${me}
       </svg>
-      <p class="map__note">Mapa esquemático do Butantã, posições reais</p>`;
+      <p class="map__note">${M && M.fonte ? esc(M.fonte) : "Mapa esquemático, posições reais"}</p>`;
 
     $$(".map__pt", box).forEach((g) => {
       const ir = () => document.getElementById(g.dataset.alvo).scrollIntoView({ behavior: REDUZIR ? "auto" : "smooth", block: "start" });
@@ -509,18 +547,26 @@
   function renderEscola() {
     const e = C.escola;
     if (!e) return $("#escola").remove();
+    const wa = e.whatsapp && linkWa(e.whatsapp, e.mensagem);
     $("#escola").innerHTML = `
       <div class="wrap">
         <div class="school">
-          <div>
+          ${e.foto ? `<div class="school__photo">${foto(e.foto, `Aula na ${semMarcas(e.titulo)}`)}</div>` : ""}
+          <div class="school__intro">
             <h2 class="title" id="escola-titulo">${fmt(e.titulo)}</h2>
             ${e.subtitulo ? `<p class="school__sub">${esc(e.subtitulo)}</p>` : ""}
             <p class="school__text">${esc(e.texto)}</p>
-            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` <span class="nowrap">${esc(e.whatsappTexto)}</span>` : ""}</p>` : ""}
+            ${e.paraQuem ? `<p class="school__text">${esc(e.paraQuem)}</p>` : ""}
+            ${e.fatos ? `<ul class="school__facts">${e.fatos.map((t) => `<li>${icon("check")} ${esc(t)}</li>`).join("")}</ul>` : ""}
           </div>
-          <div class="school__actions">
-            ${botao({ href: e.whatsapp && linkWa(e.whatsapp, e.mensagem), classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
-            ${botao({ href: e.instagram, classe: "btn--ghost-light btn--lg", texto: "Instagram da escola", ico: "ig", falta: "link" })}
+          <div class="school__side">
+            ${e.detalhes ? `<dl class="school__sheet">${e.detalhes.map((d) => `<div><dt>${esc(d.rotulo)}</dt><dd>${val(d.valor)}</dd></div>`).join("")}</dl>` : ""}
+            <div class="school__actions">
+              ${botao({ href: e.linktree, classe: "btn--paper btn--lg", texto: "Cursos e inscrições", ico: "link", falta: "Linktree" })}
+              ${botao({ href: wa, classe: "btn--wa btn--lg", texto: "WhatsApp da escola", ico: "wa", falta: "número" })}
+              ${botao({ href: e.instagram, classe: "btn--ghost-light btn--lg", texto: "@lucchesiacademy", ico: "ig", falta: "link" })}
+            </div>
+            ${e.detalhe ? `<p class="school__detail">${esc(e.detalhe)}${e.whatsappTexto ? ` <span class="nowrap">${esc(e.whatsappTexto)}</span>` : ""}</p>` : ""}
           </div>
         </div>
       </div>`;
@@ -589,19 +635,27 @@
   function iniciarDialogo() {
     const dlg = $("#dialog-unidade");
     $("#dialog-lista").innerHTML = C.unidades
-      .map((u) =>
-        u.agendar
-          ? `<a class="btn btn--line btn--block" href="${esc(u.agendar)}" ${ext}><span>${esc(u.nome)}</span>${icon("arrow")}</a>`
-          : `<span class="btn btn--block" aria-disabled="true">${esc(u.nome)} ${confirmar("link")}</span>`
-      )
+      .map((u) => {
+        const corpo = `<span class="pick__main"><strong>${esc(u.nome)}</strong><small>${val(u.endereco, "endereço")}</small></span>
+          <span class="pick__side"><span class="status" data-status-de="${esc(u.id)}">…</span>${
+            typeof u.notaGoogle === "number" ? `<span class="pick__rate">${icon("star")} ${nota(u.notaGoogle)}</span>` : ""
+          }</span>`;
+        return u.agendar
+          ? `<a class="pick" href="${esc(u.agendar)}" ${ext}>${corpo}<span class="pick__go">Agendar ${icon("arrow")}</span></a>`
+          : `<div class="pick is-off">${corpo}<span class="pick__go">${confirmar("link")}</span></div>`;
+      })
       .join("");
-    const fechar = $("form button", dlg);
-    if (fechar) fechar.className = "btn btn--ink btn--block";
+    atualizarStatus();
 
     document.addEventListener("click", (ev) => {
-      if (!ev.target.closest("[data-escolher-unidade]")) return;
-      if (dlg && typeof dlg.showModal === "function") dlg.showModal();
-      else document.getElementById("unidades").scrollIntoView();
+      const gatilho = ev.target.closest("[data-escolher-unidade]");
+      if (gatilho) {
+        if (!dlg || typeof dlg.showModal !== "function") return; // sem <dialog>: segue o link para #unidades
+        ev.preventDefault();
+        dlg.showModal();
+        return;
+      }
+      if (ev.target.closest("[data-fechar]")) dlg.close();
     });
     dlg.addEventListener("click", (ev) => ev.target === dlg && dlg.close());
   }

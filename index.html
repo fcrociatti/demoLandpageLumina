@@ -20,13 +20,13 @@
   <!-- Cada seção é preenchida pelo js/app.js a partir do config.js -->
   <main id="conteudo">
     <section class="hero" id="topo" aria-labelledby="hero-titulo"></section>
-    <section class="section about" id="sobre" aria-labelledby="sobre-titulo"></section>
-    <section class="section units-section" id="unidades" aria-labelledby="unidades-titulo"></section>
-    <section class="section steps-section" id="como-agendar" aria-labelledby="passos-titulo"></section>
     <section class="section menu-section" id="servicos" aria-labelledby="servicos-titulo"></section>
     <section class="section feature-section" id="barboterapia" aria-labelledby="barboterapia-titulo"></section>
-    <section class="section plan-section" id="assinatura" aria-labelledby="assinatura-titulo"></section>
+    <section class="section units-section" id="unidades" aria-labelledby="unidades-titulo"></section>
+    <section class="section steps-section" id="como-agendar" aria-labelledby="passos-titulo"></section>
+    <section class="section about" id="sobre" aria-labelledby="sobre-titulo"></section>
     <section class="section amenities-section" id="comodidades" aria-labelledby="comodidades-titulo"></section>
+    <section class="section plan-section" id="assinatura" aria-labelledby="assinatura-titulo"></section>
     <section class="section school-section" id="escola" aria-labelledby="escola-titulo"></section>
     <section class="section faq-section" id="faq" aria-labelledby="faq-titulo"></section>
     <section class="section ig-section" id="instagram" aria-labelledby="ig-titulo"></section>
@@ -34,17 +34,18 @@
 
   <footer class="footer" id="rodape"></footer>
 
-  <a class="fab is-hidden" id="fab-agendar" href="#unidades" hidden>
+  <a class="fab is-hidden" id="fab-agendar" href="#unidades" data-escolher-unidade hidden>
     <svg class="icon" aria-hidden="true"><use href="#i-cal"/></svg>
     Agendar
   </a>
 
   <dialog class="sheet" id="dialog-unidade" aria-labelledby="dialog-titulo">
     <div class="sheet__inner">
+      <form method="dialog" class="sheet__close"><button type="submit" aria-label="Fechar"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button></form>
       <h2 class="sheet__title" id="dialog-titulo">Em qual unidade?</h2>
-      <p class="sheet__lead">Você vê todos os serviços e horários livres no AppBarber.</p>
+      <p class="sheet__lead">Abre a agenda online da unidade no AppBarber: você escolhe o serviço, o barbeiro e o horário livre.</p>
       <div class="sheet__list" id="dialog-lista"></div>
-      <form method="dialog"><button class="btn btn--ghost btn--block" type="submit">Fechar</button></form>
+      <a class="sheet__more" href="#unidades" data-fechar>Não sabe qual fica mais perto? Ver no mapa</a>
     </div>
   </dialog>
 
@@ -67,6 +68,7 @@
     <symbol id="i-beer" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 8h10v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Zm10 2h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2M5 8a2.5 2.5 0 0 1 2-4 3 3 0 0 1 5 0 2.5 2.5 0 0 1 3 4M8.5 12v5M11.5 12v5"/></symbol>
     <symbol id="i-kid" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0M12 3c-1 1.5-.5 3 1 3"/></symbol>
     <symbol id="i-access" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM9 9h6l-1 5h4l2 5M13 9l-1 5M10 12.5A5 5 0 1 0 15 19"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>

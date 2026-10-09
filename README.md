@@ -27,7 +27,10 @@ assets/         fotos
    dela no `config.js`. Para mostrar o passo a passo de agendamento, acrescente um
    bloco `passos` (`titulo` e `itens` com `titulo`/`texto`).
 6. O mapa das unidades é desenhado a partir de `lat`/`lng`: não precisa de chave
-   de API nem biblioteca.
+   de API nem biblioteca. O fundo (`assets/mapa-butanta.svg`) usa os limites reais
+   dos distritos (Prefeitura de SP). Para outra região, troque a imagem e os
+   `limites` no bloco `mapa` do `config.js`, ou apague o bloco para usar um
+   quadro esquemático.
 7. Para um site oficial (não prévia), troque `previa.ativo` para `false`
    e remova as duas linhas `robots`/`googlebot` do `index.html`.
 
