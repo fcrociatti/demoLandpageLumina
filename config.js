@@ -7,7 +7,8 @@
  * Convenções:
  * - Qualquer valor null aparece na página como [CONFIRMAR] em destaque.
  * - Foto null aparece como o espaço [FOTO DO AMBIENTE].
- * - Em títulos, *palavra* vira a caixa vermelha e _palavra_ vira serifa itálica.
+ * - Em títulos, *palavra* vira a caixa vermelha (use pouco: topo e assinatura)
+ *   e _palavra_ vira itálico.
  * - WhatsApp: só dígitos, com 55 + DDD (ex.: "5511999999999").
  * - Horário: dias 0=domingo ... 6=sábado; cada dia é uma lista de
  *   intervalos ["HH:MM", "HH:MM"]. Lista vazia = fechado.
@@ -59,16 +60,8 @@ window.SITE_CONFIG = {
     foto: { src: FOTOS + "barbearialumina-jaud/68f020f29a205.png", legenda: "Unidade Jd. Esther", posicao: "center 60%" },
   },
 
-  // Faixa de números do topo. Só dados reais.
-  numeros: [
-    { valor: "10", sufixo: "anos", rotulo: "Desde 2016" },
-    { valor: "3", sufixo: "unidades", rotulo: "No Butantã" },
-    { valor: "5,0", sufixo: "★", rotulo: "Nota Google · Bonfiglioli" },
-    { valor: "1", sufixo: "escola", rotulo: "Lucchesi Academy" },
-  ],
-
   sobre: {
-    titulo: "Corte de qualidade e _barboterapia_",
+    titulo: "Corte de qualidade e barboterapia",
     texto: [
       "Desde 2016 no Butantã, a Lumina Class une corte de qualidade e barboterapia: barba com toalha quente e produtos que cuidam da pele.",
       "Do corte à máquina ao customizado, da coloração à sobrancelha. E sempre com uma cerveja gelada ou um café expresso esperando por você.",
@@ -80,7 +73,7 @@ window.SITE_CONFIG = {
   },
 
   textoUnidades: {
-    titulo: "Escolha sua *unidade*",
+    titulo: "Escolha sua unidade",
     lead: "Três endereços no Butantã, mesmo horário. Agende online pelo AppBarber, direto na unidade.",
   },
 
@@ -135,19 +128,10 @@ window.SITE_CONFIG = {
     },
   ],
 
-  passos: {
-    titulo: "Agendar leva _um minuto_",
-    itens: [
-      { titulo: "Escolha a unidade", texto: "A mais perto de casa ou do trabalho. O botão de localização ajuda." },
-      { titulo: "Escolha no AppBarber", texto: "Serviço, profissional e horário livre, tudo na agenda online da unidade." },
-      { titulo: "É só chegar", texto: "Senta, relaxa e deixa com a gente." },
-    ],
-  },
-
   // Cardápio. A primeira categoria aparece aberta.
   // aPartirDe: mostra "a partir de"; unidade: serviço de uma unidade só.
   servicos: {
-    titulo: "O *cardápio*",
+    titulo: "O cardápio",
     aviso: "Valores de referência do AppBarber. Podem variar por unidade.",
     botao: "Ver todos e agendar",
     categorias: [
@@ -221,12 +205,12 @@ window.SITE_CONFIG = {
   },
 
   destaque: {
-    titulo: "*Barboterapia*",
+    titulo: "Barboterapia",
     subtitulo: "A barba do jeito Lumina",
     texto:
       "Barba feita com toalha quente e produtos que cuidam da hidratação da pele. Mais do que tirar o excesso: é um momento para relaxar na cadeira.",
     itens: ["Toalha quente", "Hidratação da pele", "Relaxamento", "Barba bem feita"],
-    duracao: 40, // minutos, mostrado no relógio
+    duracao: 40, // minutos
     incluidaEm: ["Barba e cabelo", "Barba e pezinho", "Corte à máquina e barba"],
     foto: null, // sugestão: barba com toalha quente, sem rosto
   },
@@ -244,7 +228,7 @@ window.SITE_CONFIG = {
   },
 
   comodidades: {
-    titulo: "Também na _Lumina_",
+    titulo: "Também na Lumina",
     itens: [
       { icone: "beer", nome: "Cerveja e café", texto: "Cerveja gelada ou café expresso" },
       { icone: "wifi", nome: "Wi-Fi", texto: "Nas 3 unidades" },
@@ -261,7 +245,7 @@ window.SITE_CONFIG = {
   },
 
   escola: {
-    titulo: "Lucchesi *Academy*",
+    titulo: "Lucchesi Academy",
     subtitulo: "Escola de barbeiros",
     texto:
       "A formação de barbeiros da rede Lumina. Para quem quer fazer da barbearia uma profissão, aprendendo dentro de uma rede com 10 anos de cadeira.",
@@ -273,7 +257,7 @@ window.SITE_CONFIG = {
   },
 
   faq: {
-    titulo: "Perguntas _frequentes_",
+    titulo: "Perguntas frequentes",
     itens: [
       {
         p: "Como faço para agendar?",
@@ -303,7 +287,7 @@ window.SITE_CONFIG = {
   },
 
   instagram: {
-    titulo: "Veja os *cortes*",
+    titulo: "Veja os cortes",
     texto: "Acompanhe os trabalhos, conheça os barbeiros nos destaques e fale com a gente pelo direct.",
   },
 
